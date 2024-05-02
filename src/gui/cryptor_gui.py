@@ -1,12 +1,12 @@
 import customtkinter as cti
 import tkinter as tk
-from cryptor.cryptor import Cryptor
+from src.cryptor.cryptor import Cryptor
 from .gui_utils import *
 import socket
 import platform
 
-from logs.cryptor_logger import create_logger, reset_log_file
-from settings.settings import Settings
+from src.logs.cryptor_logger import create_logger, reset_log_file
+from src.settings.settings import Settings
 
 clog = create_logger("CryptorUI", 0)
 

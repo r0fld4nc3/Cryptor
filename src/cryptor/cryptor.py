@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import Fernet, InvalidToken
 import base64
 
-from logs.cryptor_logger import create_logger
+from src.logs.cryptor_logger import create_logger
 clog = create_logger("Cryptor", 1)
 
 Path = pathlib.Path

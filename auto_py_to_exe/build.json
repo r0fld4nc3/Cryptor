@@ -7,7 +7,7 @@
   },
   {
    "optionDest": "filenames",
-   "value": "D:/GitHub/Python/Cryptor/Cryptor.py"
+   "value": "D:/GitHub/Python/Cryptor/src/Cryptor.py"
   },
   {
    "optionDest": "onefile",
@@ -55,23 +55,23 @@
   },
   {
    "optionDest": "datas",
-   "value": "D:\\GitHub\\Python\\Cryptor/cryptor;cryptor/"
+   "value": "D:/GitHub/Python/Cryptor/src/cryptor;cryptor/"
   },
   {
    "optionDest": "datas",
-   "value": "D:\\GitHub\\Python\\Cryptor/gui;gui/"
+   "value": "D:/GitHub/Python/Cryptor/src/gui;gui/"
   },
   {
    "optionDest": "datas",
-   "value": "D:\\GitHub\\Python\\Cryptor/logs;logs/"
+   "value": "D:/GitHub/Python/Cryptor/src/logs;logs/"
   },
   {
    "optionDest": "datas",
-   "value": "D:\\GitHub\\Python\\Cryptor/settings;settings/"
+   "value": "D:/GitHub/Python/Cryptor/src/settings;settings/"
   },
   {
    "optionDest": "datas",
-   "value": "D:\\GitHub\\Python\\Cryptor/utils;utils/"
+   "value": "D:/GitHub/Python/Cryptor/src/utils;utils/"
   }
  ],
  "nonPyinstallerOptions": {

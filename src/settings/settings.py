@@ -4,8 +4,8 @@ import pathlib
 import sys
 import platform
 from typing import Union
-from logs.cryptor_logger import create_logger
-from utils.singleton import Singleton
+from src.logs.cryptor_logger import create_logger
+from src.utils.singleton import Singleton
 
 clog = create_logger("CryptorSettings", 1)
 
