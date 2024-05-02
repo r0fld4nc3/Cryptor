@@ -1,7 +1,7 @@
 import customtkinter as cti
 import tkinter as tk
 from src.cryptor.cryptor import Cryptor
-from .gui_utils import *
+from src.gui.gui_utils import *
 import socket
 import platform
 
