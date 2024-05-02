@@ -2,7 +2,7 @@
 A simple "lightweight" string encryptor with support for Salt
 
 <p align="center">
-<img src="https://github.com/r0fld4nc3/Cryptor/blob/main/media/Cryptor_001_1.png" width="762">
+<img src="https://github.com/r0fld4nc3/Cryptor/blob/main/_media/Cryptor_001_1.png" width="762">
 </p>
 
 # Currently tested on
