@@ -212,7 +212,7 @@ class CryptorUI:
 
         # Label Credits
         label_credits = cti.CTkLabel(master=frame,
-                                     text="© Artur Rosário",
+                                     text="© r0fld4nc3",
                                      font=self.main_font)
         label_credits.pack()
 
