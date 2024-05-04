@@ -3,18 +3,17 @@ import pathlib
 
 log_file = "cryptor.log"
 
+LOG_LEVELS = {
+    0: logging.DEBUG,
+    1: logging.INFO,
+    2: logging.WARNING,
+    3: logging.ERROR
+}
 
 def create_logger(logger_name: str, level: int):
-    log_levels = {
-        0: logging.DEBUG,
-        1: logging.INFO,
-        2: logging.WARNING,
-        3: logging.ERROR
-    }
-
     logger = logging.getLogger(logger_name)
 
-    logger.setLevel(log_levels.get(level, 1))
+    logger.setLevel(LOG_LEVELS.get(level, 1))
 
     handler_stream = logging.StreamHandler()
     handler_file = logging.FileHandler(log_file)

@@ -1,14 +1,17 @@
-import customtkinter as cti
-import tkinter as tk
-from src.cryptor.cryptor import Cryptor
-from src.gui.gui_utils import *
 import socket
 import platform
+from typing import Union
 
-from src.logs.cryptor_logger import create_logger, reset_log_file
+import customtkinter as cti
+import tkinter as tk
+
+from src.utils import utils
+from src.gui.gui_utils import *
+from src.cryptor.cryptor import Cryptor
 from src.settings.settings import Settings
+from src.logs.cryptor_logger import create_logger, reset_log_file
 
-clog = create_logger("CryptorUI", 0)
+clog = create_logger("CryptorUI", 1)
 
 
 class CryptorUI:
@@ -43,6 +46,11 @@ class CryptorUI:
         self.tab_decrypt = "Decrypt"
         self.tab_from_file = "From File"
 
+        # General
+        self.main_font = None
+        self.screen_x: int = 0
+        self.screen_y: int = 0
+
         # Widgets of importance values
         # Tab Encrypt
         self.password_input_field = None
@@ -52,13 +60,15 @@ class CryptorUI:
         self.token_input_field = None
         self.encr_pass_field = None
         self.decrypted_pass_field = None
-        # General
-        self.main_font = None
+        self.button_reveal_decrypted_password = None
+
+        # Vars that hold display info
+        self.token_var: Union[cti.StringVar, str] = ''  # These need to be defined later becase there is not root Tkinter window
+        self.encrypted_password_var: Union[cti.StringVar, str] = ''  # These need to be defined later becase there is not root Tkinter window
+        self.decrypted_password_var: Union[cti.StringVar, str] = ''  # These need to be defined later becase there is not root Tkinter window
         self.encrypted_run_feedback_var = None
 
-        self.token_var: bytes = b''
-        self.encrypted_password_var: bytes = b''
-        self.decrypted_pass_var = None
+        self.password_is_revealed = False
 
         # Reset log file
         reset_log_file()
@@ -186,19 +196,31 @@ class CryptorUI:
         button_decrypt.pack(padx=0, pady=12)
 
         # Decrypted Password Field
-        self.decrypted_pass_var = cti.StringVar()
+        self.decrypted_password_var = cti.StringVar()
         self.decrypted_pass_field = cti.CTkEntry(master=tabview.tab(self.tab_decrypt),
-                                                 textvariable=self.decrypted_pass_var,
+                                                 textvariable=self.decrypted_password_var,
                                                  width=500,
-                                                 font=self.main_font)
+                                                 font=self.main_font,
+                                                 show="*")
         self.decrypted_pass_field.pack(padx=10, pady=0)
 
+        frame_btns_copy_show_pw = cti.CTkFrame(master=tabview.tab(self.tab_decrypt))
+        frame_btns_copy_show_pw.pack(fill="x", padx=50, pady=10)
+
         # Button Copy Decrypted Password
-        button_copy_decrypted_password = cti.CTkButton(master=tabview.tab(self.tab_decrypt),
+        button_copy_decrypted_password = cti.CTkButton(master=frame_btns_copy_show_pw,
                                                        text="Copy Password",
                                                        command=self.copy_decrypted_password,
                                                        font=self.main_font)
-        button_copy_decrypted_password.pack(padx=0, pady=12)
+
+        # Button Reveal Decrypted Password
+        self.button_reveal_decrypted_password = cti.CTkButton(master=frame_btns_copy_show_pw,
+                                                       text="Reveal Password",
+                                                       command=self.reveal_decrypted_password,
+                                                       font=self.main_font)
+
+        button_copy_decrypted_password.pack(padx=(0, 6), side=cti.LEFT, expand=True, fill=cti.X)
+        self.button_reveal_decrypted_password.pack(padx=(6, 0), side=cti.LEFT, expand=True, fill=cti.X)
 
         # ============= CREATE TAB FROM FILES ===================
         tabview.add(self.tab_from_file)
@@ -216,6 +238,8 @@ class CryptorUI:
                                      font=self.main_font)
         label_credits.pack()
 
+        self.__centre_window()
+
         clog.info(f"Running mainloop")
 
         self.root.mainloop()
@@ -228,8 +252,8 @@ class CryptorUI:
     def do_encrypt(self):
         clog.info(f"Encrypting")
         # Generate a key
-        session = Cryptor()
-        session.set_salt(self.salt)
+        cryptor = Cryptor()
+        cryptor.set_salt(self.salt)
 
         password = self.password_input_field.get()
 
@@ -237,19 +261,19 @@ class CryptorUI:
             return False
 
         # Passing password as token, so it's not a random token/session each time
-        session.generate_session(token=password)
-        token, encrypted = session.encrypt(password.encode())
+        cryptor.init_session(token=password)
+        token, encrypted = cryptor.encrypt(password.encode())
 
-        self.token_var = token.decode()
-        self.encrypted_password_var = encrypted.decode()
+        self.token_var = token
+        self.encrypted_password_var = encrypted
 
         clog.info("Encryption finished")
 
         saved_file = self.save_tokens_to_file()
         if not saved_file:
-            self.encrypted_run_feedback_var.set(f"Ran on {get_now()} - WARNING: No file saved")
+            self.encrypted_run_feedback_var.set(f"Ran on {utils.get_now()} - WARNING: No file saved")
         else:
-            self.encrypted_run_feedback_var.set(f"Ran on {get_now()}")
+            self.encrypted_run_feedback_var.set(f"Ran on {utils.get_now()}")
 
         return True
 
@@ -264,18 +288,33 @@ class CryptorUI:
     def copy_encrypted_password(self):
         if self.encrypted_password_var:
             self.root.clipboard_clear()
-            self.root.clipboard_append(self.encrypted_password_var)
+            self.root.clipboard_append(utils.ensure_str(self.encrypted_password_var))
             clog.info(f"Copied encrypted password to clipboard")
         else:
             clog.warning(f"No encrypted password to copy to clipboard")
 
     def copy_decrypted_password(self):
-        if self.decrypted_pass_var:
+        if self.decrypted_password_var:
             self.root.clipboard_clear()
-            self.root.clipboard_append(self.decrypted_pass_var.get())
+            self.root.clipboard_append(utils.ensure_str(self.decrypted_password_var.get()))
             clog.info(f"Copied decrypted password to clipboard")
         else:
             clog.warning(f"No decrypted password to copy to clipboard")
+
+    def reveal_decrypted_password(self):
+        if not self.decrypted_password_var.get():
+            return
+
+        if self.password_is_revealed:
+            clog.info("Revealing decrypted password")
+            self.decrypted_pass_field.configure(show='*')
+            self.button_reveal_decrypted_password.configure(text="Reveal Password")
+            self.password_is_revealed = False
+        else:
+            clog.info("Hiding decrypted password")
+            self.decrypted_pass_field.configure(show='')
+            self.button_reveal_decrypted_password.configure(text="Hide Password")
+            self.password_is_revealed = True
 
     def do_decrypt(self):
         clog.info(f"Beginning decryption")
@@ -292,11 +331,11 @@ class CryptorUI:
         session.set_salt(self.salt)
         decrypted = session.decrypt(token, encrypted_password)
 
-        self.decrypted_pass_var.set(decrypted.decode())
+        self.decrypted_password_var.set(utils.ensure_str(decrypted))
 
         clog.info(f"Decryption finished")
 
-    def save_tokens_to_file(self):
+    def save_tokens_to_file(self) -> str:
         clog.info(f"Save tokens to file")
 
         file_suffix = "_tokens"
@@ -319,7 +358,7 @@ class CryptorUI:
         if file_suffix not in tokens_file:
             _path = Path(tokens_file).parent
             _name = Path(tokens_file).name
-            clog.info(f"Re-adding suffix '{file_suffix}' to file name {_name}")
+            clog.debug(f"Re-adding suffix '{file_suffix}' to file name {_name}")
             _suffix = Path(tokens_file).suffix
             _name = _name.replace(_suffix, "")
 
@@ -331,7 +370,9 @@ class CryptorUI:
 
         if tokens_file != file_suffix:
             with open(tokens_file, 'w') as f:
-                f.write(f"[USER]\n{user_name}\n\n[TOKEN]\n{self.token_var}\n\n[PASSWORD]\n{self.encrypted_password_var}")
+                f.write(f"[HOST]\n{user_name}\n\n"
+                        f"[TOKEN]\n{utils.ensure_str(self.token_var)}\n\n"
+                        f"[PASSWORD]\n{utils.ensure_str(self.encrypted_password_var)}")
             clog.info(f"Wrote {tokens_file}")
         else:
             clog.warning(f"Aborted. Returned tokens file: {tokens_file}")
@@ -356,14 +397,41 @@ class CryptorUI:
 
             self.settings.set_salt_token(self.salt)
 
-        return self.salt
+        return utils.ensure_bytes(self.salt)
 
-    def __is_salt_fixed(self):
+    def __is_salt_fixed(self) -> bool:
         if self.SALT_FIXED:
             return True
 
         return False
 
+    def __centre_window(self) -> None:
+        # Credit https://stackoverflow.com/a/14912644
+
+        # Requires a root to be present
+        if not self.root:
+            clog.error("No root specified")
+
+        # Get X, Y using TKinters methods
+        screen_width: int = self.root.winfo_screenwidth()  # width of the screen
+        screen_height: int = self.root.winfo_screenheight()  # height of the screen
+
+        clog.debug(f"Screen width: {screen_width}")
+        clog.debug(f"Screen height: {screen_height}")
+
+        root_width: int = self.window_size[0]
+        root_height: int = self.window_size[1]
+
+        x: int = int((screen_width / 2) - (root_width / 2))
+        y: int = int((screen_height / 2) - (root_height / 2))
+
+        # Set the dimensions of the screen and where it is placed
+        self.root.geometry(f"{root_width}x{root_height}+{x}+{y}")
+
+        if clog.level == 10:
+            clog.info(f"Centering screen {root_width}x{root_height}+{x}+{y}")
+        else:
+            clog.info(f"Centering screen")
 
 if __name__ == "__main__":
     ui = CryptorUI()

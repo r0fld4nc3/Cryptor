@@ -1,41 +1,40 @@
+import base64
 import pathlib
 from typing import Union
 
+# Cryptography
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import Fernet, InvalidToken
-import base64
 
 from src.logs.cryptor_logger import create_logger
+from src.utils import utils
+
 clog = create_logger("Cryptor", 1)
 
 Path = pathlib.Path
 
 
 class Cryptor:
-    VERSION = (0, 0, 1)
+    VERSION = (0, 0, 2)
 
     def __init__(self) -> None:
-        self.token: bytes = b''
-        self.salt: bytes = b''
+        self.token: bytes = b'' # A token to act as the hashing key
+        self.salt: bytes = b'' # Used to mix in with string hashing
 
-        self.cipher = None
+        self.cipher = None # The cipher object that will hash the strings
 
-        self.encrypted: bytes = b''
-        self.unencrypted: bytes = b''
-        self.decrypted: bytes = b''
+        self.encrypted: bytes = b'' # The final hashed string
+        self.decrypted: bytes = b'' # The final unhashed string
 
-    def generate_session(self, token: str = None) -> bytes:
+    def init_session(self, token: str = None) -> bytes:
         if not token:
             clog.info(f"Generating session without explicit token")
             key = self.generate_key_from_string(Fernet.generate_key().decode())
         else:
             clog.info(f"Generating session from given input")
-            if isinstance(token, bytes):
-                clog.info("Token is bytes. Decoding.")
-                # It's bytes
-                token = token.decode()
+            token = utils.ensure_str(token)
             key = self.generate_key_from_string(token)
 
         self.cipher = Fernet(key)
@@ -43,46 +42,37 @@ class Cryptor:
 
         clog.info("Assigned key to token")
 
-        return self.token
+        return utils.ensure_bytes(self.token)
 
     def encrypt(self, to_encrypt: Union[bytes, str]) -> tuple[bytes, bytes]:
         clog.info("Beginning encryption process")
-        if isinstance(to_encrypt, bytes):
-            clog.info(f"Decoding bytes to encrypt")
-            self.unencrypted = to_encrypt.decode()
-        else:
-            self.unencrypted = to_encrypt
 
-        if not isinstance(to_encrypt, bytes):
-            clog.info(f"Encoding to bytes to encrypt")
-            to_encrypt = to_encrypt.encode()
+        if not self.cipher:
+            # No manual session generated
+            clog.info("No manual session initialised. Initialising with empty token")
+            self.init_session()
 
-        self.encrypted = self.cipher.encrypt(to_encrypt)
+        self.encrypted = self.cipher.encrypt(utils.ensure_bytes(to_encrypt))
         clog.info(f"Encrypted")
         clog.debug(f"Token={self.token.decode()}")
         clog.debug(f"Encrypted={self.encrypted.decode()}")
 
         clog.info("Encryption finished")
 
-        return self.token, self.encrypted
+        return utils.ensure_bytes(self.token), utils.ensure_bytes(self.encrypted)
 
     def decrypt(self, token: Union[bytes, str], string: Union[bytes, str]) -> bytes:
         clog.info(f"Beginning decryption process")
-        if not isinstance(string, str):
-            clog.info(f"Decoding incoming bytes")
-            string = string.decode()
 
-        if not isinstance(token, str):
-            token = token.decode()
+        self.token = utils.ensure_bytes(token)
 
-        self.token = token
         try:
-            self.cipher = Fernet(self.token)
+            self.cipher = Fernet(utils.ensure_bytes(self.token))
         except ValueError as invalid_token_error:
-            clog.error(f"{invalid_token_error}. The supplied key was: '{self.token}'")
+            clog.error(f"{invalid_token_error}. The supplied key was: '{self.token.decode()}'")
 
         try:
-            self.decrypted = self.cipher.decrypt(string)
+            self.decrypted = self.cipher.decrypt(utils.ensure_bytes(string))
         except InvalidToken as input_error:
             clog.error(f"Invalid encrypted password provided: {input_error}")
         except AttributeError as input_error:
@@ -90,9 +80,9 @@ class Cryptor:
 
         clog.info(f"Decryption finished")
 
-        return self.decrypted
+        return utils.ensure_bytes(self.decrypted)
 
-    def generate_key_from_string(self, input_string):
+    def generate_key_from_string(self, input_string) -> bytes:
         # Convert input string to bytes
         input_bytes = input_string.encode()
 
@@ -107,14 +97,12 @@ class Cryptor:
         key = base64.urlsafe_b64encode(kdf.derive(input_bytes))
         clog.info("Generated Cipher key")
 
-        return key
+        return utils.ensure_bytes(key)
 
-    def set_salt(self, new_token: Union[str, bytes]) -> bytes:
-        if not isinstance(new_token, bytes):
-            new_token = new_token.encode()
-
-        self.salt = new_token
+    def set_salt(self, new_salt: Union[str, bytes]) -> bytes:
+        new_salt = utils.ensure_bytes(new_salt)
+        self.salt = new_salt
 
         clog.info("Set new Salt token")
 
-        return self.salt
+        return utils.ensure_bytes(self.salt)

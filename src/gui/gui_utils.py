@@ -1,6 +1,5 @@
 import pathlib
 from enum import Enum
-import datetime
 
 Path = pathlib.Path
 
@@ -26,7 +25,3 @@ def version_from_cryptor(version: tuple):
             ret += f"{str(i)}"
 
     return ret
-
-
-def get_now():
-    return datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
