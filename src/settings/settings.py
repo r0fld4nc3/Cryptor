@@ -35,8 +35,9 @@ class Settings(metaclass=Singleton):
 
     def __init__(self):
         self.settings = {
-                "app-version": "",
-                "salt-token": "",
+            "app-version": "",
+            "salt-token": "",
+            "save-on-encrypt": False
         }
         self._config_file_name = "cryptor-settings.json"
         self.config_dir = pathlib.Path(config_folder)
@@ -64,6 +65,18 @@ class Settings(metaclass=Singleton):
         self.load_config()
         t = self.settings.get("salt-token", b'').encode()
         return t
+
+    def set_save_file_on_encrypt(self, save_on_encrypt: Union[bool, int]) -> None:
+        if not isinstance(save_on_encrypt, bool):
+            save_on_encrypt = bool(save_on_encrypt)
+
+        self.settings["save-on-encrypt"] = save_on_encrypt
+        self.save_config()
+
+    def get_save_file_on_encrypt(self) -> bool:
+        self.load_config()
+        v = self.settings.get("save-on-encrypt", False)
+        return v
 
     def save_config(self):
         if self.config_dir == '' or not pathlib.Path(self.config_dir).exists():

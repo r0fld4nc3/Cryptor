@@ -11,7 +11,8 @@ from src.cryptor.cryptor import Cryptor
 from src.settings.settings import Settings
 from src.logs.cryptor_logger import create_logger, reset_log_file
 
-clog = create_logger("CryptorUI", 1)
+cuilog = create_logger("CryptorUI", 1)
+cuislog = create_logger("CryptorSettingsUI", 1)
 
 
 class CryptorUI:
@@ -19,21 +20,22 @@ class CryptorUI:
     # If this value is anything but empty, it will ignore settings and use this predefined token
     SALT_FIXED: bytes = ''
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.settings = Settings()
         self.settings.load_config()
         self.settings.set_app_version(version_from_cryptor(Cryptor.VERSION))
+        self.settings_gui = CryptorSettingsUI()
+
         # SALT should control the fixed salt token
         # If it is set to empty, then it will be user defined (file -> set salt token)
         # If it is filled, then it will disregard whatever the settings use and use the fixed token
         if self.__is_salt_fixed():
-            clog.debug("Salt token is predefined. Will ignore from settings")
+            cuilog.debug("Salt token is predefined. Will ignore from settings")
             self.salt: bytes = self.SALT_FIXED
         else:
             self.salt: bytes = self.settings.get_salt_token()
-            clog.debug(f"Salt token is not predefined. Will use from settings {self.salt.decode()}")
-
-        self.root = None
+            cuilog.debug(f"Salt token is not predefined. Will use from settings {self.salt.decode()}")
 
         self.title = "Cryptor %VERSION%".replace("%VERSION%", version_from_cryptor(Cryptor.VERSION))
 
@@ -47,6 +49,7 @@ class CryptorUI:
         self.tab_from_file = "From File"
 
         # General
+        self.root = None
         self.main_font = None
         self.screen_x: int = 0
         self.screen_y: int = 0
@@ -77,10 +80,10 @@ class CryptorUI:
         # Reset log file
         reset_log_file()
 
-        clog.info(f"{self.title}")
+        cuilog.info(f"{self.title}")
 
-    def run(self):
-        clog.info(f"Initialising UI elements")
+    def show(self):
+        cuilog.info(f"Initialising UI elements")
 
         cti.set_appearance_mode(self.appearance)
         cti.set_default_color_theme(self.theme)
@@ -99,16 +102,17 @@ class CryptorUI:
             # Only add if we need it. May change in the future, as things need to be added regardless of fixed salt
             menu_file = tk.Menu(menu_bar, tearoff=False, background="#212121", foreground="white")
             menu_file.add_command(label="Set Salt Token", command=self.set_salt_token)
+            menu_file.add_command(label="Settings", command=self.settings_gui.show)
             menu_file.add_separator()
             menu_file.add_command(label="Exit", command=self.root.quit)
             menu_bar.add_cascade(label="File", menu=menu_file)
 
         self.main_font = cti.CTkFont(**self.FONT_ROBOTO)
 
-        frame = cti.CTkFrame(master=self.root)
+        frame = cti.CTkFrame(master=self.root, fg_color="transparent")
         frame.pack(fill="both", expand=True)
 
-        tabview = cti.CTkTabview(master=frame, width=500)
+        tabview = cti.CTkTabview(master=frame, width=500, fg_color="transparent")
         tabview.grid(row=0, column=2, padx=(20, 0), pady=(20, 0), sticky="nsew")
 
         # ============= CREATE TAB ENCRYPT ===================
@@ -141,7 +145,7 @@ class CryptorUI:
         self.generated_token_field.pack(padx=10, pady=12)
 
         # Copy/Show Token Buttons Frame
-        frame_btns_copy_show_encrypted_token = cti.CTkFrame(master=tabview.tab(self.tab_encrypt))
+        frame_btns_copy_show_encrypted_token = cti.CTkFrame(master=tabview.tab(self.tab_encrypt), fg_color="transparent")
         frame_btns_copy_show_encrypted_token.pack(fill="x", padx=50, pady=0)
 
         # Copy Token Button
@@ -169,7 +173,7 @@ class CryptorUI:
         self.generated_encrypted_pass_field.pack(padx=10, pady=12)
 
         # Copy/Show Token Buttons Frame
-        frame_btns_copy_show_encrypted_pw = cti.CTkFrame(master=tabview.tab(self.tab_encrypt))
+        frame_btns_copy_show_encrypted_pw = cti.CTkFrame(master=tabview.tab(self.tab_encrypt), fg_color="transparent")
         frame_btns_copy_show_encrypted_pw.pack(fill="x", padx=50, pady=0)
 
         # Copy Encrypted Password Button
@@ -227,7 +231,7 @@ class CryptorUI:
                                                  show="*")
         self.decrypted_pass_field.pack(padx=10, pady=0)
 
-        frame_btns_copy_show_decrypted_pw = cti.CTkFrame(master=tabview.tab(self.tab_decrypt))
+        frame_btns_copy_show_decrypted_pw = cti.CTkFrame(master=tabview.tab(self.tab_decrypt), fg_color="transparent")
         frame_btns_copy_show_decrypted_pw.pack(fill="x", padx=50, pady=10)
 
         # Button Copy Decrypted Password
@@ -263,17 +267,17 @@ class CryptorUI:
 
         self.__centre_window()
 
-        clog.info(f"Running mainloop")
+        cuilog.info(f"Running mainloop")
 
         self.root.mainloop()
 
         # TODO: Why does this run everytime we accept the salt token
         self.settings.save_config()
 
-        clog.info("Shutdown")
+        cuilog.info("Shutdown")
 
     def do_encrypt(self):
-        clog.info(f"Encrypting")
+        cuilog.info(f"Encrypting")
         # Generate a key
         cryptor = Cryptor()
         cryptor.set_salt(self.salt)
@@ -291,13 +295,16 @@ class CryptorUI:
         self.token_var.set(utils.ensure_str(token))
         self.encrypted_password_var.set(utils.ensure_str(encrypted))
 
-        clog.info("Encryption finished")
+        cuilog.info("Encryption finished")
 
-        saved_file = self.save_tokens_to_file()
-        if not saved_file:
-            self.encrypted_run_feedback_var.set(f"Ran on {utils.get_now()} - WARNING: No file saved")
+        if self.settings.get_save_file_on_encrypt():
+            saved_file = self.save_tokens_to_file()
+            if not saved_file:
+                self.encrypted_run_feedback_var.set(f"Ran on {utils.get_now()} - WARNING: No file saved")
+            else:
+                self.encrypted_run_feedback_var.set(f"Ran on {utils.get_now()}")
         else:
-            self.encrypted_run_feedback_var.set(f"Ran on {utils.get_now()}")
+             self.encrypted_run_feedback_var.set(f"Ran on {utils.get_now()}")
 
         return True
 
@@ -305,37 +312,37 @@ class CryptorUI:
         if self.token_var.get():
             self.root.clipboard_clear()
             self.root.clipboard_append(utils.ensure_str(self.token_var.get()))
-            clog.info(f"Copied token to clipboard")
+            cuilog.info(f"Copied token to clipboard")
         else:
-            clog.warning(f"No token to copy to clipboard")
+            cuilog.warning(f"No token to copy to clipboard")
 
     def copy_encrypted_password(self):
         if self.encrypted_password_var.get():
             self.root.clipboard_clear()
             self.root.clipboard_append(utils.ensure_str(self.encrypted_password_var.get()))
-            clog.info(f"Copied encrypted password to clipboard")
+            cuilog.info(f"Copied encrypted password to clipboard")
         else:
-            clog.warning(f"No encrypted password to copy to clipboard")
+            cuilog.warning(f"No encrypted password to copy to clipboard")
 
     def copy_decrypted_password(self):
         if self.decrypted_password_var:
             self.root.clipboard_clear()
             self.root.clipboard_append(utils.ensure_str(self.decrypted_password_var.get()))
-            clog.info(f"Copied decrypted password to clipboard")
+            cuilog.info(f"Copied decrypted password to clipboard")
         else:
-            clog.warning(f"No decrypted password to copy to clipboard")
+            cuilog.warning(f"No decrypted password to copy to clipboard")
 
     def show_decrypted_password(self):
         if not self.decrypted_password_var.get():
             return
 
         if self.is_decrypted_password_shown:
-            clog.info("Hiding decrypted password")
+            cuilog.info("Hiding decrypted password")
             self.decrypted_pass_field.configure(show='*')
             self.button_show_decrypted_password.configure(text="Show Password")
             self.is_decrypted_password_shown = False
         else:
-            clog.info("Showing decrypted password")
+            cuilog.info("Showing decrypted password")
             self.decrypted_pass_field.configure(show='')
             self.button_show_decrypted_password.configure(text="Hide Password")
             self.is_decrypted_password_shown = True
@@ -345,12 +352,12 @@ class CryptorUI:
             return
 
         if self.is_encrypted_token_shown:
-            clog.info("Hiding token")
+            cuilog.info("Hiding token")
             self.generated_token_field.configure(show='*')
             self.button_show_token.configure(text="Show Token")
             self.is_encrypted_token_shown = False
         else:
-            clog.info("Showing token")
+            cuilog.info("Showing token")
             self.generated_token_field.configure(show='')
             self.button_show_token.configure(text="Hide Token")
             self.is_encrypted_token_shown = True
@@ -360,24 +367,24 @@ class CryptorUI:
             return
 
         if self.is_encrypted_password_shown:
-            clog.info("Hiding token")
+            cuilog.info("Hiding token")
             self.generated_encrypted_pass_field.configure(show='*')
             self.button_show_encrypted_password.configure(text="Show Password")
             self.is_encrypted_password_shown = False
         else:
-            clog.info("Showing token")
+            cuilog.info("Showing token")
             self.generated_encrypted_pass_field.configure(show='')
             self.button_show_encrypted_password.configure(text="Hide Password")
             self.is_encrypted_password_shown = True
 
     def do_decrypt(self):
-        clog.info(f"Beginning decryption")
+        cuilog.info(f"Beginning decryption")
 
         token = self.token_input_field.get()
         encrypted_password = self.encrypted_pass_field.get()
 
         if not token and not encrypted_password:
-            clog.warning(f"No token and encrypted password provided")
+            cuilog.warning(f"No token and encrypted password provided")
             self.reset_decryption_fields()
             return False
 
@@ -389,10 +396,10 @@ class CryptorUI:
 
         self.decrypted_password_var.set(utils.ensure_str(decrypted))
 
-        clog.info(f"Decryption finished")
+        cuilog.info(f"Decryption finished")
 
     def save_tokens_to_file(self) -> str:
-        clog.info(f"Save tokens to file")
+        cuilog.info(f"Save tokens to file")
 
         file_suffix = "_tokens"
 
@@ -400,10 +407,10 @@ class CryptorUI:
         file_name = socket.gethostname() + "_tokens.txt"
 
         if "Windows" in platform.platform():
-            clog.info(f"Platform is Windows")
+            cuilog.info(f"Platform is Windows")
             file_path = file_path / "Desktop"
 
-        clog.info(f"Suggested file: {file_path / file_name}")
+        cuilog.info(f"Suggested file: {file_path / file_name}")
 
         tokens_file = cti.filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text", ".txt")],
                                                        title="Save tokens file",
@@ -414,7 +421,7 @@ class CryptorUI:
         if file_suffix not in tokens_file:
             _path = Path(tokens_file).parent
             _name = Path(tokens_file).name
-            clog.debug(f"Re-adding suffix '{file_suffix}' to file name {_name}")
+            cuilog.debug(f"Re-adding suffix '{file_suffix}' to file name {_name}")
             _suffix = Path(tokens_file).suffix
             _name = _name.replace(_suffix, "")
 
@@ -422,16 +429,16 @@ class CryptorUI:
             tokens_file = str(_path / _name)
 
         user_name = Path(tokens_file).name.replace("_tokens", '').replace(Path(tokens_file).suffix, "")
-        clog.info(f"Generated User Name {user_name}")
+        cuilog.info(f"Generated User Name {user_name}")
 
         if tokens_file != file_suffix:
             with open(tokens_file, 'w') as f:
                 f.write(f"[HOST]\n{user_name}\n\n"
                         f"[TOKEN]\n{utils.ensure_str(self.token_var.get())}\n\n"
                         f"[PASSWORD]\n{utils.ensure_str(self.encrypted_password_var.get())}")
-            clog.info(f"Wrote {tokens_file}")
+            cuilog.info(f"Wrote {tokens_file}")
         else:
-            clog.warning(f"Aborted. Returned tokens file: {tokens_file}")
+            cuilog.warning(f"Aborted. Returned tokens file: {tokens_file}")
             tokens_file = ''
 
         return tokens_file
@@ -459,13 +466,13 @@ class CryptorUI:
         self.token_var.set('')
         self.encrypted_password_var.set('')
         self.encrypted_run_feedback_var.set(f"Ran on {utils.get_now()} - Reset fields")
-        clog.info("Reset encryption fields")
+        cuilog.info("Reset encryption fields")
 
     def reset_decryption_fields(self):
         self.token_input_field.configure(textvariable='')
         self.encrypted_pass_field.configure(textvariable='')
         self.decrypted_password_var.set('')
-        clog.info("Reset decryption fields")
+        cuilog.info("Reset decryption fields")
 
     def __is_salt_fixed(self) -> bool:
         if self.SALT_FIXED:
@@ -478,14 +485,14 @@ class CryptorUI:
 
         # Requires a root to be present
         if not self.root:
-            clog.error("No root specified")
+            cuilog.error("No root specified")
 
         # Get X, Y using TKinters methods
         screen_width: int = self.root.winfo_screenwidth()  # width of the screen
         screen_height: int = self.root.winfo_screenheight()  # height of the screen
 
-        clog.debug(f"Screen width: {screen_width}")
-        clog.debug(f"Screen height: {screen_height}")
+        cuilog.debug(f"Screen width: {screen_width}")
+        cuilog.debug(f"Screen height: {screen_height}")
 
         root_width: int = self.window_size[0]
         root_height: int = self.window_size[1]
@@ -496,11 +503,132 @@ class CryptorUI:
         # Set the dimensions of the screen and where it is placed
         self.root.geometry(f"{root_width}x{root_height}+{x}+{y}")
 
-        if clog.level == 10:
-            clog.info(f"Centering screen {root_width}x{root_height}+{x}+{y}")
+        if cuilog.level == 10:
+            cuilog.info(f"Centering screen {root_width}x{root_height}+{x}+{y}")
         else:
-            clog.info(f"Centering screen")
+            cuilog.info(f"Centering screen")
+
+class CryptorSettingsUI():
+    FONT_ROBOTO = {"family": "Roboto", "size": 14}
+
+    def __init__(self, win_x_y: tuple = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.settings = Settings()
+        self.settings.load_config()
+
+        self.title = "Cryptor Settings"
+
+        self.appearance = AppearanceMode.DARK.value
+        self.theme = Theme.BLUE_DARK.value
+
+        self.window_size = (500, 400)
+        if win_x_y:
+            _x = win_x_y[0]
+            if _x < 50:
+                _x = 50
+
+            _y = win_x_y[1]
+            if _y < 50:
+                _y = 50
+
+            self.window_size = (_x, _y)
+
+        # Widgets of importance values
+        self.save_file_on_encrypt_var = None
+
+        # General
+        self.settings_root = None
+        self.main_font = None
+        self.screen_x: int = 0
+        self.screen_y: int = 0
+
+        self.is_showing = False
+
+    def show(self):
+        if self.is_showing:
+            return
+
+        cuislog.info(f"Initialising UI elements")
+
+        cti.set_appearance_mode(self.appearance)
+        cti.set_default_color_theme(self.theme)
+
+        self.settings_root = cti.CTk()
+        self.settings_root.geometry(f"{self.window_size[0]}x{self.window_size[1]}")
+        self.settings_root.title(self.title)
+
+        # ============ MAIN FRAME ============
+        main_frame = cti.CTkScrollableFrame(master=self.settings_root, width=self.window_size[0]-15,
+                                            height=self.window_size[1]-20,
+                                            corner_radius=0, fg_color="transparent")
+        main_frame.grid(row=0, column=0, sticky="nsew")
+
+        # Radio Save On Hash
+        self.save_file_on_encrypt_var = cti.IntVar()
+        self.save_file_on_encrypt_var.set(int(self.settings.get_save_file_on_encrypt()))
+        switch_save_on_hash = cti.CTkSwitch(master=main_frame,
+                                            text="Save File on Encrypt",
+                                            variable=self.save_file_on_encrypt_var,
+                                            command=None,
+                                            onvalue=True, offvalue=False)
+        switch_save_on_hash.pack()
+
+        # Button Accept
+        button_accept = cti.CTkButton(master=main_frame,
+                                          text="Accept",
+                                          command=self.accept_settings,
+                                          font=self.main_font)
+        button_accept.pack(pady=12)
+
+        self.__centre_window()
+
+        self.is_showing = True
+        cuislog.info(f"Running mainloop")
+
+        self.settings_root.protocol("WM_DELETE_WINDOW", self.__on_close_callback)
+        self.settings_root.mainloop()
+
+        self.is_showing = False
+        cuislog.info(f"Shutdown")
+
+    def accept_settings(self):
+        self.settings.set_save_file_on_encrypt(self.save_file_on_encrypt_var.get())
+        self.settings_root.quit()
+        self.settings_root.destroy()
+
+    def __centre_window(self) -> None:
+        # Credit https://stackoverflow.com/a/14912644
+
+        # Requires a root to be present
+        if not self.settings_root:
+            cuislog.error("No root specified")
+
+        # Get X, Y using TKinters methods
+        screen_width: int = self.settings_root.winfo_screenwidth()  # width of the screen
+        screen_height: int = self.settings_root.winfo_screenheight()  # height of the screen
+
+        cuislog.debug(f"Screen width: {screen_width}")
+        cuislog.debug(f"Screen height: {screen_height}")
+
+        root_width: int = self.window_size[0]
+        root_height: int = self.window_size[1]
+
+        x: int = int((screen_width / 2) - (root_width / 2))
+        y: int = int((screen_height / 2) - (root_height / 2))
+
+        # Set the dimensions of the screen and where it is placed
+        self.settings_root.geometry(f"{root_width}x{root_height}+{x}+{y}")
+
+        if cuislog.level == 10:
+            cuislog.info(f"Centering screen {root_width}x{root_height}+{x}+{y}")
+        else:
+            cuislog.info(f"Centering screen")
+
+    def __on_close_callback(self):
+        self.is_showing = False
+        self.settings_root.destroy()
+
 
 if __name__ == "__main__":
     ui = CryptorUI()
-    ui.run()
+    ui.show()
