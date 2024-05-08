@@ -37,6 +37,7 @@ class Settings(metaclass=Singleton):
         self.settings = {
             "app-version": "",
             "salt-token": "",
+            "check-updates": False,
             "save-on-encrypt": False
         }
         self._config_file_name = "cryptor-settings.json"
@@ -76,6 +77,18 @@ class Settings(metaclass=Singleton):
     def get_save_file_on_encrypt(self) -> bool:
         self.load_config()
         v = self.settings.get("save-on-encrypt", False)
+        return v
+
+    def set_check_updates(self, check_updates: Union[bool, int]) -> None:
+        if not isinstance(check_updates, bool):
+            check_updates = bool(check_updates)
+
+        self.settings["check-updates"] = check_updates
+        self.save_config()
+
+    def get_check_updates(self) -> bool:
+        self.load_config()
+        v = self.settings.get("check-updates", False)
         return v
 
     def save_config(self):

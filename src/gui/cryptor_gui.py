@@ -1,6 +1,8 @@
 import socket
 import platform
+import webbrowser
 from typing import Union
+from concurrent.futures import ThreadPoolExecutor
 
 import customtkinter as cti
 import tkinter as tk
@@ -10,6 +12,7 @@ from src.gui.gui_utils import *
 from src.cryptor.cryptor import Cryptor
 from src.settings.settings import Settings
 from src.logs.cryptor_logger import create_logger, reset_log_file
+from src.updater.updater import Updater
 
 cuilog = create_logger("CryptorUI", 1)
 cuislog = create_logger("CryptorSettingsUI", 1)
@@ -22,10 +25,27 @@ class CryptorUI:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Settings
         self.settings = Settings()
         self.settings.load_config()
         self.settings.set_app_version(version_from_cryptor(Cryptor.VERSION))
-        self.settings_gui = CryptorSettingsUI()
+        self.toplevel_settings_class = CryptorSettingsUI
+        self.settings_gui = None
+
+        # Updater
+        self.has_update: bool = False
+        self.updater: Union[Updater, None] = None
+        if self.settings.get_check_updates():
+            self.updater = Updater()
+            self.updater.set_current_version(version_from_cryptor(Cryptor.VERSION))
+            self.check_for_update()
+
+        # General
+        self.root = None
+        self.main_font = None
+        self.screen_x: int = 0
+        self.screen_y: int = 0
 
         # SALT should control the fixed salt token
         # If it is set to empty, then it will be user defined (file -> set salt token)
@@ -48,13 +68,8 @@ class CryptorUI:
         self.tab_decrypt = "Decrypt"
         self.tab_from_file = "From File"
 
-        # General
-        self.root = None
-        self.main_font = None
-        self.screen_x: int = 0
-        self.screen_y: int = 0
-
         # Widgets of importance values
+        self.label_credits = None
         # Tab Encrypt
         self.password_input_field = None
         self.generated_token_field = None
@@ -98,14 +113,14 @@ class CryptorUI:
         self.root.config(menu=menu_bar)
 
         # File Menu
+        # Only add if we need it. May change in the future, as things need to be added regardless of fixed salt
+        menu_file = tk.Menu(menu_bar, tearoff=False, background="#212121", foreground="white")
         if not self.__is_salt_fixed():
-            # Only add if we need it. May change in the future, as things need to be added regardless of fixed salt
-            menu_file = tk.Menu(menu_bar, tearoff=False, background="#212121", foreground="white")
             menu_file.add_command(label="Set Salt Token", command=self.set_salt_token)
-            menu_file.add_command(label="Settings", command=self.settings_gui.show)
-            menu_file.add_separator()
-            menu_file.add_command(label="Exit", command=self.root.quit)
-            menu_bar.add_cascade(label="File", menu=menu_file)
+        menu_file.add_command(label="Settings", command=self.open_settings_gui)
+        menu_file.add_separator()
+        menu_file.add_command(label="Exit", command=self.root.quit)
+        menu_bar.add_cascade(label="File", menu=menu_file)
 
         self.main_font = cti.CTkFont(**self.FONT_ROBOTO)
 
@@ -260,12 +275,16 @@ class CryptorUI:
         label_wip.pack(padx=0, pady=12)
 
         # Label Credits
-        label_credits = cti.CTkLabel(master=frame,
+        self.label_credits = cti.CTkLabel(master=frame,
                                      text="© r0fld4nc3",
                                      font=self.main_font)
-        label_credits.pack()
+        self.label_credits.pack()
 
         self.__centre_window()
+
+        # Check for update
+        if self.updater and self.has_update:
+            self.__label_update_available()
 
         cuilog.info(f"Running mainloop")
 
@@ -446,6 +465,9 @@ class CryptorUI:
     def set_salt_token(self) -> bytes:
         # Launch a prompt window
         dialog = cti.CTkInputDialog(text="New Salt Token:", title="Set Salt Token")
+        _x = self.root.winfo_x() + int(self.root.winfo_width() / 6)
+        _y = self.root.winfo_y() + int(self.root.winfo_height() / 5)
+        dialog.geometry(f"+{_x}+{_y}")
         new_token = dialog.get_input()  # If nothing/aborted returns '' or None
 
         # If SALT is predefined, then just return that
@@ -462,6 +484,20 @@ class CryptorUI:
 
         return utils.ensure_bytes(self.salt)
 
+    def open_settings_gui(self):
+        # Check if instanstiated
+        if self.settings_gui is None:
+            cuilog.info("Instantiating Settings Window")
+            self.settings_gui = self.toplevel_settings_class(settings=self.settings)
+        else:
+            if not self.settings_gui.winfo_exists():
+                cuilog.info("Settings Window existed but is closed. Re-instantiating")
+                self.settings_gui = self.toplevel_settings_class(settings=self.settings)
+            else:
+                cuilog.info("Settings Window is visible")
+
+        self.settings_gui.grab_set()
+
     def reset_encryption_fields(self):
         self.token_var.set('')
         self.encrypted_password_var.set('')
@@ -473,6 +509,20 @@ class CryptorUI:
         self.encrypted_pass_field.configure(textvariable='')
         self.decrypted_password_var.set('')
         cuilog.info("Reset decryption fields")
+
+    def check_for_update(self):
+        if not self.updater:
+            return
+
+        cuilog.info("Checking for Updates")
+        with ThreadPoolExecutor() as executor:
+            thread_update = executor.submit(self.updater.check_for_update)
+        self.has_update = thread_update.result()
+
+    def __label_update_available(self):
+        cuilog.info("Binding Hyperlink Label")
+        self.label_credits.configure(text="© r0fld4nc3 (Update available)", text_color="#769dff", cursor="hand2")
+        self.label_credits.bind("<Button-1>", lambda e: webbrowser.open(f"http://www.github.com/{self.updater.repo}"))
 
     def __is_salt_fixed(self) -> bool:
         if self.SALT_FIXED:
@@ -508,58 +558,47 @@ class CryptorUI:
         else:
             cuilog.info(f"Centering screen")
 
-class CryptorSettingsUI():
+
+class CryptorSettingsUI(cti.CTkToplevel):
     FONT_ROBOTO = {"family": "Roboto", "size": 14}
 
-    def __init__(self, win_x_y: tuple = None, *args, **kwargs):
+    def __init__(self, settings=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.settings = Settings()
-        self.settings.load_config()
+        if not settings:
+            self.settings = Settings()
+            self.settings.load_config()
+        else:
+            self.settings = settings
 
-        self.title = "Cryptor Settings"
+        self.w_title = "Cryptor Settings"
 
         self.appearance = AppearanceMode.DARK.value
         self.theme = Theme.BLUE_DARK.value
 
-        self.window_size = (500, 400)
-        if win_x_y:
-            _x = win_x_y[0]
-            if _x < 50:
-                _x = 50
-
-            _y = win_x_y[1]
-            if _y < 50:
-                _y = 50
-
-            self.window_size = (_x, _y)
-
         # Widgets of importance values
         self.save_file_on_encrypt_var = None
+        self.check_for_updates_var = None
 
         # General
-        self.settings_root = None
-        self.main_font = None
-        self.screen_x: int = 0
-        self.screen_y: int = 0
+        self.w_size = (500, 400)
+        self.offset_x = 50
+        self.offset_y = 50
+        self.main_font = cti.CTkFont(**self.FONT_ROBOTO)
 
-        self.is_showing = False
-
-    def show(self):
-        if self.is_showing:
-            return
-
+        # ==============================
+        # ============= UI =============
+        # ==============================
         cuislog.info(f"Initialising UI elements")
 
         cti.set_appearance_mode(self.appearance)
         cti.set_default_color_theme(self.theme)
 
-        self.settings_root = cti.CTk()
-        self.settings_root.geometry(f"{self.window_size[0]}x{self.window_size[1]}")
-        self.settings_root.title(self.title)
+        self.title(self.w_title)
+        self.geometry(f"{self.w_size[0]}x{self.w_size[1]}+{self.offset_x}+{self.offset_y}")
 
         # ============ MAIN FRAME ============
-        main_frame = cti.CTkScrollableFrame(master=self.settings_root, width=self.window_size[0]-15,
-                                            height=self.window_size[1]-20,
+        main_frame = cti.CTkScrollableFrame(master=self, width=self.w_size[0] - 15,
+                                            height=self.w_size[1] - 20,
                                             corner_radius=0, fg_color="transparent")
         main_frame.grid(row=0, column=0, sticky="nsew")
 
@@ -571,62 +610,55 @@ class CryptorSettingsUI():
                                             variable=self.save_file_on_encrypt_var,
                                             command=None,
                                             onvalue=True, offvalue=False)
-        switch_save_on_hash.pack()
+        switch_save_on_hash.pack(pady=20)
+
+        # Radio Check Updates on Startup
+        self.check_for_updates_var = cti.IntVar()
+        self.check_for_updates_var.set(int(self.settings.get_check_updates()))
+        switch_check_for_updates = cti.CTkSwitch(master=main_frame,
+                                            text="Check for updates",
+                                            variable=self.check_for_updates_var,
+                                            command=None,
+                                            onvalue=True, offvalue=False)
+        switch_check_for_updates.pack(pady=20)
 
         # Button Accept
         button_accept = cti.CTkButton(master=main_frame,
-                                          text="Accept",
-                                          command=self.accept_settings,
-                                          font=self.main_font)
+                                      text="Accept",
+                                      command=self.accept_settings,
+                                      font=self.main_font)
         button_accept.pack(pady=12)
 
         self.__centre_window()
 
-        self.is_showing = True
-        cuislog.info(f"Running mainloop")
-
-        self.settings_root.protocol("WM_DELETE_WINDOW", self.__on_close_callback)
-        self.settings_root.mainloop()
-
-        self.is_showing = False
-        cuislog.info(f"Shutdown")
-
     def accept_settings(self):
         self.settings.set_save_file_on_encrypt(self.save_file_on_encrypt_var.get())
-        self.settings_root.quit()
-        self.settings_root.destroy()
+        self.settings.set_check_updates(self.check_for_updates_var.get())
+        self.destroy()
 
     def __centre_window(self) -> None:
         # Credit https://stackoverflow.com/a/14912644
 
-        # Requires a root to be present
-        if not self.settings_root:
-            cuislog.error("No root specified")
-
         # Get X, Y using TKinters methods
-        screen_width: int = self.settings_root.winfo_screenwidth()  # width of the screen
-        screen_height: int = self.settings_root.winfo_screenheight()  # height of the screen
+        screen_width: int = self.winfo_screenwidth()  # width of the screen
+        screen_height: int = self.winfo_screenheight()  # height of the screen
 
         cuislog.debug(f"Screen width: {screen_width}")
         cuislog.debug(f"Screen height: {screen_height}")
 
-        root_width: int = self.window_size[0]
-        root_height: int = self.window_size[1]
+        root_width: int = self.w_size[0]
+        root_height: int = self.w_size[1]
 
-        x: int = int((screen_width / 2) - (root_width / 2))
-        y: int = int((screen_height / 2) - (root_height / 2))
+        x: int = int((screen_width / 2) - (root_width / 2)) + self.offset_x
+        y: int = int((screen_height / 2) - (root_height / 2)) + self.offset_y
 
         # Set the dimensions of the screen and where it is placed
-        self.settings_root.geometry(f"{root_width}x{root_height}+{x}+{y}")
+        self.geometry(f"{root_width}x{root_height}+{x}+{y}")
 
         if cuislog.level == 10:
             cuislog.info(f"Centering screen {root_width}x{root_height}+{x}+{y}")
         else:
             cuislog.info(f"Centering screen")
-
-    def __on_close_callback(self):
-        self.is_showing = False
-        self.settings_root.destroy()
 
 
 if __name__ == "__main__":
