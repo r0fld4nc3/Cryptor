@@ -1,6 +1,8 @@
 import logging
 import pathlib
 
+Path = pathlib.Path
+
 log_file = "cryptor.log"
 
 LEVELS = {
@@ -29,6 +31,6 @@ def create_logger(logger_name: str, level: int) -> logging.Logger:
 
 
 def reset_log_file() -> None:
-    if pathlib.Path(log_file).exists():
+    if Path(log_file).exists():
         with open(log_file, 'w') as f:
             f.write('')
