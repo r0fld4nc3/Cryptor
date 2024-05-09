@@ -1,3 +1,4 @@
 cryptography
 customtkinter
 requests
+auto-py-to-exe

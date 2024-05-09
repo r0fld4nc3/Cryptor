@@ -1,21 +1,23 @@
 import socket
 import platform
 import webbrowser
+from time import sleep
 from typing import Union
-from concurrent.futures import ThreadPoolExecutor
 
 import customtkinter as cti
 import tkinter as tk
 
+from conf_globals.globals import G_LOG_LEVEL
 from src.utils import utils
+from src.utils.threaded_task import ThreadedQueue
 from src.gui.gui_utils import *
 from src.cryptor.cryptor import Cryptor
 from src.settings.settings import Settings
 from src.logs.cryptor_logger import create_logger, reset_log_file
 from src.updater.updater import Updater
 
-cuilog = create_logger("CryptorUI", 1)
-cuislog = create_logger("CryptorSettingsUI", 1)
+cuilog = create_logger("CryptorUI", G_LOG_LEVEL)
+cuislog = create_logger("CryptorSettingsUI", G_LOG_LEVEL)
 
 
 class CryptorUI:
@@ -33,13 +35,16 @@ class CryptorUI:
         self.toplevel_settings_class = CryptorSettingsUI
         self.settings_gui = None
 
+        self.task_queue = ThreadedQueue()
+        self.task_queue.start_workers()
+
         # Updater
         self.has_update: bool = False
         self.updater: Union[Updater, None] = None
         if self.settings.get_check_updates():
             self.updater = Updater()
-            self.updater.set_current_version(version_from_cryptor(Cryptor.VERSION))
-            self.check_for_update()
+            self.updater.set_current_version("0.0.0")
+            self.task_queue.add_task(self.check_for_update)
 
         # General
         self.root = None
@@ -282,10 +287,6 @@ class CryptorUI:
 
         self.__centre_window()
 
-        # Check for update
-        if self.updater and self.has_update:
-            self.__label_update_available()
-
         cuilog.info(f"Running mainloop")
 
         self.root.mainloop()
@@ -293,9 +294,11 @@ class CryptorUI:
         # TODO: Why does this run everytime we accept the salt token
         self.settings.save_config()
 
+        self.task_queue.stop_workers()
+
         cuilog.info("Shutdown")
 
-    def do_encrypt(self):
+    def do_encrypt(self) -> bool:
         cuilog.info(f"Encrypting")
         # Generate a key
         cryptor = Cryptor()
@@ -327,7 +330,7 @@ class CryptorUI:
 
         return True
 
-    def copy_token(self):
+    def copy_token(self) -> None:
         if self.token_var.get():
             self.root.clipboard_clear()
             self.root.clipboard_append(utils.ensure_str(self.token_var.get()))
@@ -335,7 +338,7 @@ class CryptorUI:
         else:
             cuilog.warning(f"No token to copy to clipboard")
 
-    def copy_encrypted_password(self):
+    def copy_encrypted_password(self) -> None:
         if self.encrypted_password_var.get():
             self.root.clipboard_clear()
             self.root.clipboard_append(utils.ensure_str(self.encrypted_password_var.get()))
@@ -343,7 +346,7 @@ class CryptorUI:
         else:
             cuilog.warning(f"No encrypted password to copy to clipboard")
 
-    def copy_decrypted_password(self):
+    def copy_decrypted_password(self) -> None:
         if self.decrypted_password_var:
             self.root.clipboard_clear()
             self.root.clipboard_append(utils.ensure_str(self.decrypted_password_var.get()))
@@ -351,7 +354,7 @@ class CryptorUI:
         else:
             cuilog.warning(f"No decrypted password to copy to clipboard")
 
-    def show_decrypted_password(self):
+    def show_decrypted_password(self) -> None:
         if not self.decrypted_password_var.get():
             return
 
@@ -366,7 +369,7 @@ class CryptorUI:
             self.button_show_decrypted_password.configure(text="Hide Password")
             self.is_decrypted_password_shown = True
 
-    def show_token(self):
+    def show_token(self) -> None:
         if not self.token_var.get():
             return
 
@@ -381,7 +384,7 @@ class CryptorUI:
             self.button_show_token.configure(text="Hide Token")
             self.is_encrypted_token_shown = True
 
-    def show_encrypted_password(self):
+    def show_encrypted_password(self) -> None:
         if not self.encrypted_password_var.get():
             return
 
@@ -396,7 +399,7 @@ class CryptorUI:
             self.button_show_encrypted_password.configure(text="Hide Password")
             self.is_encrypted_password_shown = True
 
-    def do_decrypt(self):
+    def do_decrypt(self) -> bool:
         cuilog.info(f"Beginning decryption")
 
         token = self.token_input_field.get()
@@ -416,6 +419,8 @@ class CryptorUI:
         self.decrypted_password_var.set(utils.ensure_str(decrypted))
 
         cuilog.info(f"Decryption finished")
+
+        return True
 
     def save_tokens_to_file(self) -> str:
         cuilog.info(f"Save tokens to file")
@@ -498,28 +503,30 @@ class CryptorUI:
 
         self.settings_gui.grab_set()
 
-    def reset_encryption_fields(self):
+    def reset_encryption_fields(self) -> None:
         self.token_var.set('')
         self.encrypted_password_var.set('')
         self.encrypted_run_feedback_var.set(f"Ran on {utils.get_now()} - Reset fields")
         cuilog.info("Reset encryption fields")
 
-    def reset_decryption_fields(self):
+    def reset_decryption_fields(self) -> None:
         self.token_input_field.configure(textvariable='')
         self.encrypted_pass_field.configure(textvariable='')
         self.decrypted_password_var.set('')
         cuilog.info("Reset decryption fields")
 
-    def check_for_update(self):
-        if not self.updater:
-            return
-
+    def check_for_update(self) -> bool:
+        sleep(2)
         cuilog.info("Checking for Updates")
-        with ThreadPoolExecutor() as executor:
-            thread_update = executor.submit(self.updater.check_for_update)
-        self.has_update = thread_update.result()
 
-    def __label_update_available(self):
+        self.has_update = self.updater.check_for_update()
+
+        if self.has_update:
+            self.__label_update_available()
+
+        return self.has_update
+
+    def __label_update_available(self) -> None:
         cuilog.info("Binding Hyperlink Label")
         self.label_credits.configure(text="© r0fld4nc3 (Update available)", text_color="#769dff", cursor="hand2")
         self.label_credits.bind("<Button-1>", lambda e: webbrowser.open(f"http://www.github.com/{self.updater.repo}"))
@@ -561,6 +568,7 @@ class CryptorUI:
 
 class CryptorSettingsUI(cti.CTkToplevel):
     FONT_ROBOTO = {"family": "Roboto", "size": 14}
+    SETTING_BG_COLOUR = "#343638"
 
     def __init__(self, settings=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -580,7 +588,7 @@ class CryptorSettingsUI(cti.CTkToplevel):
         self.check_for_updates_var = None
 
         # General
-        self.w_size = (500, 400)
+        self.w_size = (300, 400)
         self.offset_x = 50
         self.offset_y = 50
         self.main_font = cti.CTkFont(**self.FONT_ROBOTO)
@@ -597,41 +605,53 @@ class CryptorSettingsUI(cti.CTkToplevel):
         self.geometry(f"{self.w_size[0]}x{self.w_size[1]}+{self.offset_x}+{self.offset_y}")
 
         # ============ MAIN FRAME ============
-        main_frame = cti.CTkScrollableFrame(master=self, width=self.w_size[0] - 15,
+        main_frame = cti.CTkFrame(master=self, width=self.w_size[0] - 15,
+                                  height=self.w_size[1] - 20,
+                                  corner_radius=0, fg_color="transparent")
+        main_frame.pack(side="left", fill="both", expand=True, padx=10)
+
+        scroll_frame = cti.CTkScrollableFrame(master=main_frame, width=self.w_size[0] - 15,
                                             height=self.w_size[1] - 20,
                                             corner_radius=0, fg_color="transparent")
-        main_frame.grid(row=0, column=0, sticky="nsew")
+        scroll_frame.grid(row=0, column=0, sticky="nsew")
+        # Adjust the padding of the scrollbar by adding an empty column to the left of the scrollbar
+        main_frame.grid_columnconfigure(0, weight=1)  # Allow the scrollbar column to expand
+        scroll_frame.grid_columnconfigure(1, minsize=5)  # Add an empty column for padding
+        scrollbar = scroll_frame._scrollbar
+        scrollbar.grid(row=1, column=2, sticky="ns")  # Adjust the column index as needed
 
         # Radio Save On Hash
         self.save_file_on_encrypt_var = cti.IntVar()
         self.save_file_on_encrypt_var.set(int(self.settings.get_save_file_on_encrypt()))
-        switch_save_on_hash = cti.CTkSwitch(master=main_frame,
+        switch_save_on_hash = cti.CTkSwitch(master=scroll_frame,
                                             text="Save File on Encrypt",
                                             variable=self.save_file_on_encrypt_var,
                                             command=None,
-                                            onvalue=True, offvalue=False)
-        switch_save_on_hash.pack(pady=20)
+                                            onvalue=True, offvalue=False,
+                                            bg_color=CryptorSettingsUI.SETTING_BG_COLOUR)
+        switch_save_on_hash.pack(fill="both", expand=True, pady=20)
 
         # Radio Check Updates on Startup
         self.check_for_updates_var = cti.IntVar()
         self.check_for_updates_var.set(int(self.settings.get_check_updates()))
-        switch_check_for_updates = cti.CTkSwitch(master=main_frame,
-                                            text="Check for updates",
-                                            variable=self.check_for_updates_var,
-                                            command=None,
-                                            onvalue=True, offvalue=False)
-        switch_check_for_updates.pack(pady=20)
+        switch_check_for_updates = cti.CTkSwitch(master=scroll_frame,
+                                                 text="Check for updates",
+                                                 variable=self.check_for_updates_var,
+                                                 command=None,
+                                                 onvalue=True, offvalue=False,
+                                                 bg_color=CryptorSettingsUI.SETTING_BG_COLOUR)
+        switch_check_for_updates.pack(fill="both", expand=True)
 
         # Button Accept
-        button_accept = cti.CTkButton(master=main_frame,
+        button_accept = cti.CTkButton(master=scroll_frame,
                                       text="Accept",
                                       command=self.accept_settings,
                                       font=self.main_font)
-        button_accept.pack(pady=12)
+        button_accept.pack(pady=20)
 
         self.__centre_window()
 
-    def accept_settings(self):
+    def accept_settings(self) -> None:
         self.settings.set_save_file_on_encrypt(self.save_file_on_encrypt_var.get())
         self.settings.set_check_updates(self.check_for_updates_var.get())
         self.destroy()

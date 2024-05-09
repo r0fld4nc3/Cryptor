@@ -4,30 +4,33 @@ import pathlib
 import sys
 import platform
 from typing import Union
+
 from src.utils.singleton import Singleton
 from src.logs.cryptor_logger import create_logger
+from conf_globals.globals import G_LOG_LEVEL
 
-clog = create_logger("CryptorSettings", 1)
+Path = pathlib.Path
+clog = create_logger("CryptorSettings", G_LOG_LEVEL)
 
 system = platform.system().lower()
 if "windows" in system:
     clog.info("Target System Windows")
     program_data_path = os.getenv("LOCALAPPDATA")
-    config_folder = pathlib.Path(program_data_path + "\\r0fld4nc3\\Apps\\Cryptor")
+    config_folder = Path(program_data_path + "\\r0fld4nc3\\Apps\\Cryptor")
 elif "linux" in system or "unix" in system:
     clog.info("Target System Linux/Unix")
-    program_data_path = pathlib.Path("/usr/local/var/")
-    config_folder = pathlib.Path(program_data_path) / "r0fld4nc3" / "Apps" / "Cryptor"
+    program_data_path = Path("/usr/local/var/")
+    config_folder = Path(program_data_path) / "r0fld4nc3" / "Apps" / "Cryptor"
 elif "darwin" in system or "mac" in system:
     clog.info("Target System MacOS")
     # Write to user-writable locations, like ~/Applications
-    program_data_path = pathlib.Path(pathlib.Path.home() / "Applications")
-    config_folder = pathlib.Path(program_data_path) / "r0fld4nc3" / "Apps" / "Cryptor"
+    program_data_path = Path(Path.home() / "Applications")
+    config_folder = Path(program_data_path) / "r0fld4nc3" / "Apps" / "Cryptor"
 else:
     clog.info("Target System Other")
     clog.info(system)
-    program_data_path = pathlib.Path.cwd()
-    config_folder = pathlib.Path(program_data_path) / r"\r0fld4nc3" / "Apps" / "Cryptor"
+    program_data_path = Path.cwd()
+    config_folder = Path(program_data_path) / r"\r0fld4nc3" / "Apps" / "Cryptor"
 
 clog.info(f"Config folder: {config_folder}")
 
@@ -41,8 +44,8 @@ class Settings(metaclass=Singleton):
             "save-on-encrypt": False
         }
         self._config_file_name = "cryptor-settings.json"
-        self.config_dir = pathlib.Path(config_folder)
-        self.config_file = pathlib.Path(config_folder) / self._config_file_name
+        self.config_dir = Path(config_folder)
+        self.config_file = Path(config_folder) / self._config_file_name
 
     def set_app_version(self, version: str):
         self.settings["app-version"] = version
@@ -50,7 +53,7 @@ class Settings(metaclass=Singleton):
 
         return self
 
-    def get_app_version(self):
+    def get_app_version(self) -> str:
         self.load_config()
         v = self.settings.get("app-version")
         return v
@@ -91,8 +94,8 @@ class Settings(metaclass=Singleton):
         v = self.settings.get("check-updates", False)
         return v
 
-    def save_config(self):
-        if self.config_dir == '' or not pathlib.Path(self.config_dir).exists():
+    def save_config(self) -> Path:
+        if self.config_dir == '' or not Path(self.config_dir).exists():
             os.makedirs(self.config_dir)
             clog.info(f"Generated config folder {self.config_dir}")
 
@@ -100,11 +103,13 @@ class Settings(metaclass=Singleton):
             config_file.write(json.dumps(self.settings, indent=2))
             clog.info(f"Saved config {self.config_file}")
 
-    def load_config(self):
-        if self.config_dir == '' or not pathlib.Path(self.config_dir).exists()\
-                or not pathlib.Path(self.config_file).exists():
+        return self.config_file
+
+    def load_config(self) -> dict:
+        if self.config_dir == '' or not Path(self.config_dir).exists()\
+                or not Path(self.config_file).exists():
             clog.debug(f"Config does not exist.")
-            return False
+            return {}
 
         self.clean_save_file()
 
@@ -126,19 +131,19 @@ class Settings(metaclass=Singleton):
 
         return self.settings
 
-    def get_config_dir(self) -> pathlib.Path:
-        if not self.config_dir or not pathlib.Path(self.config_dir).exists:
-            return pathlib.Path(os.path.dirname(sys.executable))
+    def get_config_dir(self) -> Path:
+        if not self.config_dir or not Path(self.config_dir).exists:
+            return Path(os.path.dirname(sys.executable))
 
         return self.config_dir
 
-    def clean_save_file(self):
+    def clean_save_file(self) -> bool:
         """
         Removes unused keys from the save file.
         :return: `bool`
         """
 
-        if not self.config_dir or not pathlib.Path(self.config_dir).exists():
+        if not self.config_dir or not Path(self.config_dir).exists():
             clog.info("No config folder found.")
             return False
 

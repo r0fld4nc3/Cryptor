@@ -55,6 +55,10 @@
   },
   {
    "optionDest": "datas",
+   "value": "D:/GitHub/Python/Cryptor/src/conf_globals;conf_globals/"
+  },
+  {
+   "optionDest": "datas",
    "value": "D:/GitHub/Python/Cryptor/src/cryptor;cryptor/"
   },
   {
@@ -71,7 +75,15 @@
   },
   {
    "optionDest": "datas",
+   "value": "D:/GitHub/Python/Cryptor/src/updater;updater/"
+  },
+  {
+   "optionDest": "datas",
    "value": "D:/GitHub/Python/Cryptor/src/utils;utils/"
+  },
+  {
+   "optionDest": "pathex",
+   "value": "D:/GitHub/Python/Cryptor/src"
   }
  ],
  "nonPyinstallerOptions": {

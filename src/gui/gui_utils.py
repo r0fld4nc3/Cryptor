@@ -16,7 +16,7 @@ class Theme(Enum):
     BLUE_DARK = "dark-blue"
 
 
-def version_from_cryptor(version: tuple):
+def version_from_cryptor(version: tuple) -> str:
     ret = ""
     for i in version:
         if i != version[-1]:

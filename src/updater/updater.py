@@ -2,8 +2,9 @@ import requests
 import json
 
 from src.logs.cryptor_logger import create_logger
+from conf_globals.globals import G_LOG_LEVEL
 
-updlog = create_logger("Updater", 1)
+updlog = create_logger("Updater", G_LOG_LEVEL)
 
 class Updater:
     def __init__(self):
@@ -23,15 +24,16 @@ class Updater:
 
         self.local_version = "0.0.0"
 
-    def check_for_update(self):
+    def check_for_update(self) -> bool:
         updlog.info("Checking for Cryptor update...")
 
         try:
             # allow_redirects=False because of vulnerability https://security.snyk.io/vuln/SNYK-PYTHON-REQUESTS-5595532
+            updlog.info(f"Requesting from {self.url}")
             response = requests.get(self.url, timeout=60, allow_redirects=False)
         except requests.ConnectionError as con_err:
             updlog.error(f"Unable to establish connection to update repo.")
-            updlog.debug_error(con_err)
+            updlog.error(con_err)
             return False
 
         if not response.status_code == 200:
@@ -89,7 +91,7 @@ class Updater:
             updlog.info("No updates found.")
         return False
 
-    def set_current_version(self, version_str: str):
+    def set_current_version(self, version_str: str) -> None:
         self.local_version = version_str
 
     @staticmethod
@@ -97,7 +99,7 @@ class Updater:
         _out = value
         try:
             _out = int(value)
-        except Exception:
+        except ValueError:
             updlog.error(f"Unable to convert {value} to int.")
             _out = value
 

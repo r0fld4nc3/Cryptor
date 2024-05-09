@@ -9,9 +9,10 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import Fernet, InvalidToken
 
 from src.logs.cryptor_logger import create_logger
+from conf_globals.globals import G_LOG_LEVEL
 from src.utils import utils
 
-clog = create_logger("Cryptor", 1)
+clog = create_logger("Cryptor", G_LOG_LEVEL)
 
 Path = pathlib.Path
 
