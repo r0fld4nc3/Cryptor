@@ -7,7 +7,7 @@
   },
   {
    "optionDest": "filenames",
-   "value": "D:/GitHub/Python/Cryptor/src/Cryptor.py"
+   "value": "D:/GitHub/Python/Cryptor/Cryptor.py"
   },
   {
    "optionDest": "onefile",
@@ -54,32 +54,8 @@
    "value": false
   },
   {
-   "optionDest": "datas",
-   "value": "D:/GitHub/Python/Cryptor/src/conf_globals;conf_globals/"
-  },
-  {
-   "optionDest": "datas",
-   "value": "D:/GitHub/Python/Cryptor/src/cryptor;cryptor/"
-  },
-  {
-   "optionDest": "datas",
-   "value": "D:/GitHub/Python/Cryptor/src/gui;gui/"
-  },
-  {
-   "optionDest": "datas",
-   "value": "D:/GitHub/Python/Cryptor/src/logs;logs/"
-  },
-  {
-   "optionDest": "datas",
-   "value": "D:/GitHub/Python/Cryptor/src/settings;settings/"
-  },
-  {
-   "optionDest": "datas",
-   "value": "D:/GitHub/Python/Cryptor/src/updater;updater/"
-  },
-  {
-   "optionDest": "datas",
-   "value": "D:/GitHub/Python/Cryptor/src/utils;utils/"
+   "optionDest": "optimize",
+   "value": "2"
   },
   {
    "optionDest": "pathex",
