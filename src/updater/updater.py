@@ -25,7 +25,7 @@ class Updater:
         self.local_version = "0.0.0"
 
     def check_for_update(self) -> bool:
-        updlog.info("Checking for Cryptor update...")
+        updlog.info(f"Checking for {self.repo_name} update...")
 
         try:
             # allow_redirects=False because of vulnerability https://security.snyk.io/vuln/SNYK-PYTHON-REQUESTS-5595532
