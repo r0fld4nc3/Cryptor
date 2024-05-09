@@ -11,6 +11,7 @@ from conf_globals.globals import G_LOG_LEVEL
 
 Path = pathlib.Path
 HOST: str = "r0fld4nc3"
+APP_FOLDER: str = "Apps"
 APP_NAME: str = "Cryptor"
 
 clog = create_logger("CryptorSettings", G_LOG_LEVEL)
@@ -19,21 +20,19 @@ system = platform.system().lower()
 if "windows" in system:
     clog.info("Target System Windows")
     program_data_path = os.getenv("LOCALAPPDATA")
-    config_folder = Path(program_data_path + f"\\{HOST}\\Apps\\{APP_NAME}")
 elif "linux" in system or "unix" in system:
     clog.info("Target System Linux/Unix")
     program_data_path = Path("/usr/local/var/")
-    config_folder = Path(program_data_path) / HOST / "Apps" / APP_NAME
 elif "darwin" in system or "mac" in system:
     clog.info("Target System MacOS")
     # Write to user-writable locations, like ~/Applications
     program_data_path = Path(Path.home() / "Applications")
-    config_folder = Path(program_data_path) / HOST / "Apps" / APP_NAME
 else:
     clog.info("Target System Other")
     clog.info(system)
     program_data_path = Path.cwd()
-    config_folder = Path(program_data_path) / HOST / "Apps" / APP_NAME
+
+config_folder = Path(program_data_path) / HOST / APP_FOLDER / APP_NAME
 
 clog.info(f"Config folder: {config_folder}")
 
