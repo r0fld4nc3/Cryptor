@@ -1,16 +1,16 @@
 # Cryptor
-A simple "lightweight" string encryptor with support for Salt
+A simple "lightweight" string hasher/encryption that has support for salt.
 
 <p align="center">
 <img src="https://github.com/r0fld4nc3/Cryptor/blob/main/_media/Cryptor_001_1.png" width="762">
 </p>
 
-# Currently tested on
-Windows: ✔️
+# Currently Tested On:
+Windows: ✔
 
 Linux/Unix: ❎
 
-MacOS: ❎
+MacOS: ✔
 
 # Planned Features
 - Updater (so it can notify once a new release is up)
