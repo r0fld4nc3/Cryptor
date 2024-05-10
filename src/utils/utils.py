@@ -1,7 +1,10 @@
 import datetime
 from typing import Union
 
-def get_now():
+def get_now(ts: bool = False) -> Union[str, int]:
+    if ts:
+        return int(datetime.datetime.now().timestamp())
+
     return datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
 def ensure_bytes(obj: Union[str, bytes]) -> bytes:

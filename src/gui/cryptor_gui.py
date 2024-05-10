@@ -39,9 +39,10 @@ class CryptorUI:
         self.task_queue.start_workers()
 
         # Updater
+        self.check_update_cooldown = 60 * 30 # seconds
         self.has_update: bool = False
         self.updater: Union[Updater, None] = None
-        if self.settings.get_check_updates():
+        if self.settings.get_check_for_updates():
             self.updater = Updater()
             self.updater.set_current_version("0.0.0")
             self.task_queue.add_task(self.check_for_update)
@@ -519,7 +520,19 @@ class CryptorUI:
         sleep(2)
         cuilog.info("Checking for Updates")
 
-        self.has_update = self.updater.check_for_update()
+        # Check today's date and last checked date
+        do_check = False
+        now = utils.get_now(ts=True)
+        last_checked = self.settings.get_last_checked_update()
+
+        if now >= last_checked + self.check_update_cooldown:
+            do_check = True
+
+        cuilog.info(f"Today: {now} | Last:  {last_checked} | {do_check}")
+
+        if do_check:
+            self.has_update = self.updater.check_for_update()
+            self.settings.set_last_checked_update(now)
 
         if self.has_update:
             self.__label_update_available()
@@ -633,7 +646,7 @@ class CryptorSettingsUI(cti.CTkToplevel):
 
         # Radio Check Updates on Startup
         self.check_for_updates_var = cti.IntVar()
-        self.check_for_updates_var.set(int(self.settings.get_check_updates()))
+        self.check_for_updates_var.set(int(self.settings.get_check_for_updates()))
         switch_check_for_updates = cti.CTkSwitch(master=scroll_frame,
                                                  text="Check for updates",
                                                  variable=self.check_for_updates_var,
@@ -653,7 +666,7 @@ class CryptorSettingsUI(cti.CTkToplevel):
 
     def accept_settings(self) -> None:
         self.settings.set_save_file_on_encrypt(self.save_file_on_encrypt_var.get())
-        self.settings.set_check_updates(self.check_for_updates_var.get())
+        self.settings.set_check_for_updates(self.check_for_updates_var.get())
         self.destroy()
 
     def __centre_window(self) -> None:
