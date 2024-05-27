@@ -1,9 +1,11 @@
 import logging
 import pathlib
 
+from conf_globals.globals import config_folder
+
 Path = pathlib.Path
 
-log_file = "cryptor.log"
+log_file = config_folder / "cryptor.log"
 
 LEVELS = {
     0: logging.DEBUG,

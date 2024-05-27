@@ -1,24 +1,26 @@
+import pathlib
 import socket
 import platform
 import webbrowser
 from time import sleep
 from typing import Union
 
-import customtkinter as cti
+import customtkinter as ctk
 import tkinter as tk
 
 from conf_globals.globals import G_LOG_LEVEL
 from src.utils import utils
+from src.ui.gui_utils import AppearanceMode, Theme, version_from_tuple, centre_window
 from src.utils.threaded_task import ThreadedQueue
-from src.gui.gui_utils import *
 from src.cryptor.cryptor import Cryptor
 from src.settings.settings import Settings
-from src.logs.cryptor_logger import create_logger, reset_log_file
+from src.logs.cryptor_logger import create_logger
 from src.updater.updater import Updater
 
 cuilog = create_logger("CryptorUI", G_LOG_LEVEL)
 cuislog = create_logger("CryptorSettingsUI", G_LOG_LEVEL)
 
+Path = pathlib.Path
 
 class CryptorUI:
     FONT_ROBOTO = {"family": "Roboto", "size": 14}
@@ -31,7 +33,7 @@ class CryptorUI:
         # Settings
         self.settings = Settings()
         self.settings.load_config()
-        self.settings.set_app_version(version_from_cryptor(Cryptor.VERSION))
+        self.settings.set_app_version(version_from_tuple(Cryptor.VERSION))
         self.toplevel_settings_class = CryptorSettingsUI
         self.settings_gui = None
 
@@ -63,7 +65,7 @@ class CryptorUI:
             self.salt: bytes = self.settings.get_salt_token()
             cuilog.debug(f"Salt token is not predefined. Will use from settings {self.salt.decode()}")
 
-        self.title = "Cryptor %VERSION%".replace("%VERSION%", version_from_cryptor(Cryptor.VERSION))
+        self.title = "Cryptor %VERSION%".replace("%VERSION%", version_from_tuple(Cryptor.VERSION))
 
         self.appearance = AppearanceMode.DARK.value
         self.theme = Theme.BLUE_DARK.value
@@ -89,27 +91,24 @@ class CryptorUI:
         self.button_show_decrypted_password = None
 
         # Vars that hold display info
-        self.token_var: Union[cti.StringVar, str] = ''  # These need to be defined later becase there is not root Tkinter window
-        self.encrypted_password_var: Union[cti.StringVar, str] = ''  # These need to be defined later becase there is not root Tkinter window
-        self.decrypted_password_var: Union[cti.StringVar, str] = ''  # These need to be defined later becase there is not root Tkinter window
+        self.token_var: Union[ctk.StringVar, str] = ''  # These need to be defined later becase there is not root Tkinter window
+        self.encrypted_password_var: Union[ctk.StringVar, str] = ''  # These need to be defined later becase there is not root Tkinter window
+        self.decrypted_password_var: Union[ctk.StringVar, str] = ''  # These need to be defined later becase there is not root Tkinter window
         self.encrypted_run_feedback_var = None
 
         self.is_encrypted_token_shown = False
         self.is_encrypted_password_shown = False
         self.is_decrypted_password_shown = False
 
-        # Reset log file
-        reset_log_file()
-
         cuilog.info(f"{self.title}")
 
     def show(self):
         cuilog.info(f"Initialising UI elements")
 
-        cti.set_appearance_mode(self.appearance)
-        cti.set_default_color_theme(self.theme)
+        ctk.set_appearance_mode(self.appearance)
+        ctk.set_default_color_theme(self.theme)
 
-        self.root = cti.CTk()
+        self.root = ctk.CTk()
         self.root.geometry(f"{self.window_size[0]}x{self.window_size[1]}")
         self.root.title(self.title)
 
@@ -128,12 +127,12 @@ class CryptorUI:
         menu_file.add_command(label="Exit", command=self.root.quit)
         menu_bar.add_cascade(label="File", menu=menu_file)
 
-        self.main_font = cti.CTkFont(**self.FONT_ROBOTO)
+        self.main_font = ctk.CTkFont(**self.FONT_ROBOTO)
 
-        frame = cti.CTkFrame(master=self.root, fg_color="transparent")
+        frame = ctk.CTkFrame(master=self.root, fg_color="transparent")
         frame.pack(fill="both", expand=True)
 
-        tabview = cti.CTkTabview(master=frame, width=500, fg_color="transparent")
+        tabview = ctk.CTkTabview(master=frame, width=500, fg_color="transparent")
         tabview.grid(row=0, column=2, padx=(20, 0), pady=(20, 0), sticky="nsew")
 
         # ============= CREATE TAB ENCRYPT ===================
@@ -141,23 +140,23 @@ class CryptorUI:
         tabview.tab(self.tab_encrypt)
 
         # Password Input Field
-        self.password_input_field = cti.CTkEntry(master=tabview.tab(self.tab_encrypt),
+        self.password_input_field = ctk.CTkEntry(master=tabview.tab(self.tab_encrypt),
                                                  placeholder_text="Password",
                                                  width=500,
                                                  font=self.main_font)
         self.password_input_field.pack(padx=10, pady=0)
 
-        self.encrypted_run_feedback_var = cti.StringVar()
+        self.encrypted_run_feedback_var = ctk.StringVar()
         # Button Begin Encrypt
-        button_encrypt = cti.CTkButton(master=tabview.tab(self.tab_encrypt),
+        button_encrypt = ctk.CTkButton(master=tabview.tab(self.tab_encrypt),
                                        text="Encrypt",
                                        command=self.do_encrypt,
                                        font=self.main_font)
-        button_encrypt.pack(padx=(6, 3), pady=12, side=cti.TOP, expand=False, fill=cti.X)
+        button_encrypt.pack(padx=(6, 3), pady=12, side=ctk.TOP, expand=False, fill=ctk.X)
 
         # Token Field
-        self.token_var = cti.StringVar()
-        self.generated_token_field = cti.CTkEntry(master=tabview.tab(self.tab_encrypt),
+        self.token_var = ctk.StringVar()
+        self.generated_token_field = ctk.CTkEntry(master=tabview.tab(self.tab_encrypt),
                                                   textvariable=self.token_var,
                                                   show='*',
                                                   width=500,
@@ -166,26 +165,26 @@ class CryptorUI:
         self.generated_token_field.pack(padx=10, pady=12)
 
         # Copy/Show Token Buttons Frame
-        frame_btns_copy_show_encrypted_token = cti.CTkFrame(master=tabview.tab(self.tab_encrypt), fg_color="transparent")
+        frame_btns_copy_show_encrypted_token = ctk.CTkFrame(master=tabview.tab(self.tab_encrypt), fg_color="transparent")
         frame_btns_copy_show_encrypted_token.pack(fill="x", padx=50, pady=0)
 
         # Copy Token Button
-        copy_token_button = cti.CTkButton(master=frame_btns_copy_show_encrypted_token,
+        copy_token_button = ctk.CTkButton(master=frame_btns_copy_show_encrypted_token,
                                           text="Copy Token",
                                           command=self.copy_token,
                                           font=self.main_font)
 
         # Show Token Button
-        self.button_show_token = cti.CTkButton(master=frame_btns_copy_show_encrypted_token,
+        self.button_show_token = ctk.CTkButton(master=frame_btns_copy_show_encrypted_token,
                                                text="Show Token",
                                                command=self.show_token,
                                                font=self.main_font)
-        copy_token_button.pack(padx=(0, 6), side=cti.LEFT, expand=True, fill=cti.X)
-        self.button_show_token.pack(padx=(6, 0), side=cti.LEFT, expand=True, fill=cti.X)
+        copy_token_button.pack(padx=(0, 6), side=ctk.LEFT, expand=True, fill=ctk.X)
+        self.button_show_token.pack(padx=(6, 0), side=ctk.LEFT, expand=True, fill=ctk.X)
 
         # Encrypted Password Field
-        self.encrypted_password_var = cti.StringVar()
-        self.generated_encrypted_pass_field = cti.CTkEntry(master=tabview.tab(self.tab_encrypt),
+        self.encrypted_password_var = ctk.StringVar()
+        self.generated_encrypted_pass_field = ctk.CTkEntry(master=tabview.tab(self.tab_encrypt),
                                                            textvariable=self.encrypted_password_var,
                                                            show='*',
                                                            width=500,
@@ -194,99 +193,99 @@ class CryptorUI:
         self.generated_encrypted_pass_field.pack(padx=10, pady=12)
 
         # Copy/Show Token Buttons Frame
-        frame_btns_copy_show_encrypted_pw = cti.CTkFrame(master=tabview.tab(self.tab_encrypt), fg_color="transparent")
+        frame_btns_copy_show_encrypted_pw = ctk.CTkFrame(master=tabview.tab(self.tab_encrypt), fg_color="transparent")
         frame_btns_copy_show_encrypted_pw.pack(fill="x", padx=50, pady=0)
 
         # Copy Encrypted Password Button
-        copy_encrypted_password_button = cti.CTkButton(master=frame_btns_copy_show_encrypted_pw,
+        copy_encrypted_password_button = ctk.CTkButton(master=frame_btns_copy_show_encrypted_pw,
                                                        text="Copy Password",
                                                        command=self.copy_encrypted_password,
                                                        font=self.main_font)
 
         # Show Encrypted Password Button
-        self.button_show_encrypted_password = cti.CTkButton(master=frame_btns_copy_show_encrypted_pw,
+        self.button_show_encrypted_password = ctk.CTkButton(master=frame_btns_copy_show_encrypted_pw,
                                                             text="Show Password",
                                                             command=self.show_encrypted_password,
                                                             font=self.main_font)
 
-        copy_encrypted_password_button.pack(padx=(0, 6), side=cti.LEFT, expand=True, fill=cti.X)
-        self.button_show_encrypted_password.pack(padx=(6, 0), side=cti.LEFT, expand=True, fill=cti.X)
+        copy_encrypted_password_button.pack(padx=(0, 6), side=ctk.LEFT, expand=True, fill=ctk.X)
+        self.button_show_encrypted_password.pack(padx=(6, 0), side=ctk.LEFT, expand=True, fill=ctk.X)
 
         # Set and Pack info label for run status
-        encrypt_run_status = cti.CTkLabel(master=tabview.tab(self.tab_encrypt),
+        encrypt_run_status = ctk.CTkLabel(master=tabview.tab(self.tab_encrypt),
                                           textvariable=self.encrypted_run_feedback_var,
                                           font=self.main_font)
-        encrypt_run_status.pack(side=cti.BOTTOM, expand=True, fill=cti.X)
+        encrypt_run_status.pack(side=ctk.BOTTOM, expand=True, fill=ctk.X)
 
         # ============= CREATE TAB DECRYPT ===================
         tabview.add(self.tab_decrypt)
         tabview.tab(self.tab_decrypt)
 
         # Token Input Field
-        self.token_input_field = cti.CTkEntry(master=tabview.tab(self.tab_decrypt),
+        self.token_input_field = ctk.CTkEntry(master=tabview.tab(self.tab_decrypt),
                                               placeholder_text="Please supply a Token",
                                               width=500,
                                               font=self.main_font)
         self.token_input_field.pack(padx=10, pady=6)
 
         # Password Input Field
-        self.encrypted_pass_field = cti.CTkEntry(master=tabview.tab(self.tab_decrypt),
+        self.encrypted_pass_field = ctk.CTkEntry(master=tabview.tab(self.tab_decrypt),
                                                  placeholder_text="Please supply an Encrypted Password",
                                                  width=500,
                                                  font=self.main_font)
         self.encrypted_pass_field.pack(padx=10, pady=0)
 
         # Button Begin Decrypt
-        button_decrypt = cti.CTkButton(master=tabview.tab(self.tab_decrypt),
+        button_decrypt = ctk.CTkButton(master=tabview.tab(self.tab_decrypt),
                                        text="Decrypt",
                                        command=self.do_decrypt,
                                        font=self.main_font)
         button_decrypt.pack(padx=0, pady=12)
 
         # Decrypted Password Field
-        self.decrypted_password_var = cti.StringVar()
-        self.decrypted_pass_field = cti.CTkEntry(master=tabview.tab(self.tab_decrypt),
+        self.decrypted_password_var = ctk.StringVar()
+        self.decrypted_pass_field = ctk.CTkEntry(master=tabview.tab(self.tab_decrypt),
                                                  textvariable=self.decrypted_password_var,
                                                  width=500,
                                                  font=self.main_font,
                                                  show="*")
         self.decrypted_pass_field.pack(padx=10, pady=0)
 
-        frame_btns_copy_show_decrypted_pw = cti.CTkFrame(master=tabview.tab(self.tab_decrypt), fg_color="transparent")
+        frame_btns_copy_show_decrypted_pw = ctk.CTkFrame(master=tabview.tab(self.tab_decrypt), fg_color="transparent")
         frame_btns_copy_show_decrypted_pw.pack(fill="x", padx=50, pady=10)
 
         # Button Copy Decrypted Password
-        button_copy_decrypted_password = cti.CTkButton(master=frame_btns_copy_show_decrypted_pw,
+        button_copy_decrypted_password = ctk.CTkButton(master=frame_btns_copy_show_decrypted_pw,
                                                        text="Copy Password",
                                                        command=self.copy_decrypted_password,
                                                        font=self.main_font)
 
         # Button Show Decrypted Password
-        self.button_show_decrypted_password = cti.CTkButton(master=frame_btns_copy_show_decrypted_pw,
+        self.button_show_decrypted_password = ctk.CTkButton(master=frame_btns_copy_show_decrypted_pw,
                                                             text="Show Password",
                                                             command=self.show_decrypted_password,
                                                             font=self.main_font)
 
-        button_copy_decrypted_password.pack(padx=(0, 6), side=cti.LEFT, expand=True, fill=cti.X)
-        self.button_show_decrypted_password.pack(padx=(6, 0), side=cti.LEFT, expand=True, fill=cti.X)
+        button_copy_decrypted_password.pack(padx=(0, 6), side=ctk.LEFT, expand=True, fill=ctk.X)
+        self.button_show_decrypted_password.pack(padx=(6, 0), side=ctk.LEFT, expand=True, fill=ctk.X)
 
         # ============= CREATE TAB FROM FILES ===================
         tabview.add(self.tab_from_file)
         tabview.pack(padx=10, pady=12)
 
-        label_wip = cti.CTkLabel(master=tabview.tab(self.tab_from_file),
+        label_wip = ctk.CTkLabel(master=tabview.tab(self.tab_from_file),
                                  text="Under construction",
                                  text_color="Yellow",
                                  font=self.main_font)
         label_wip.pack(padx=0, pady=12)
 
         # Label Credits
-        self.label_credits = cti.CTkLabel(master=frame,
-                                     text="© r0fld4nc3",
-                                     font=self.main_font)
+        self.label_credits = ctk.CTkLabel(master=frame,
+                                          text="© r0fld4nc3",
+                                          font=self.main_font)
         self.label_credits.pack()
 
-        self.__centre_window()
+        centre_window(self.root, self.window_size[0], self.window_size[1])
 
         cuilog.info(f"Running mainloop")
 
@@ -437,7 +436,7 @@ class CryptorUI:
 
         cuilog.info(f"Suggested file: {file_path / file_name}")
 
-        tokens_file = cti.filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text", ".txt")],
+        tokens_file = ctk.filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text", ".txt")],
                                                        title="Save tokens file",
                                                        initialdir=file_path,
                                                        initialfile=file_name)
@@ -470,7 +469,7 @@ class CryptorUI:
 
     def set_salt_token(self) -> bytes:
         # Launch a prompt window
-        dialog = cti.CTkInputDialog(text="New Salt Token:", title="Set Salt Token")
+        dialog = ctk.CTkInputDialog(text="New Salt Token:", title="Set Salt Token")
         _x = self.root.winfo_x() + int(self.root.winfo_width() / 6)
         _y = self.root.winfo_y() + int(self.root.winfo_height() / 5)
         dialog.geometry(f"+{_x}+{_y}")
@@ -550,36 +549,8 @@ class CryptorUI:
 
         return False
 
-    def __centre_window(self) -> None:
-        # Credit https://stackoverflow.com/a/14912644
 
-        # Requires a root to be present
-        if not self.root:
-            cuilog.error("No root specified")
-
-        # Get X, Y using TKinters methods
-        screen_width: int = self.root.winfo_screenwidth()  # width of the screen
-        screen_height: int = self.root.winfo_screenheight()  # height of the screen
-
-        cuilog.debug(f"Screen width: {screen_width}")
-        cuilog.debug(f"Screen height: {screen_height}")
-
-        root_width: int = self.window_size[0]
-        root_height: int = self.window_size[1]
-
-        x: int = int((screen_width / 2) - (root_width / 2))
-        y: int = int((screen_height / 2) - (root_height / 2))
-
-        # Set the dimensions of the screen and where it is placed
-        self.root.geometry(f"{root_width}x{root_height}+{x}+{y}")
-
-        if cuilog.level == 10:
-            cuilog.info(f"Centering screen {root_width}x{root_height}+{x}+{y}")
-        else:
-            cuilog.info(f"Centering screen")
-
-
-class CryptorSettingsUI(cti.CTkToplevel):
+class CryptorSettingsUI(ctk.CTkToplevel):
     FONT_ROBOTO = {"family": "Roboto", "size": 14}
     SETTING_BG_COLOUR = "#343638"
 
@@ -604,28 +575,28 @@ class CryptorSettingsUI(cti.CTkToplevel):
         self.w_size = (300, 400)
         self.offset_x = 50
         self.offset_y = 50
-        self.main_font = cti.CTkFont(**self.FONT_ROBOTO)
+        self.main_font = ctk.CTkFont(**self.FONT_ROBOTO)
 
         # ==============================
-        # ============= UI =============
+        # ============= ui =============
         # ==============================
         cuislog.info(f"Initialising UI elements")
 
-        cti.set_appearance_mode(self.appearance)
-        cti.set_default_color_theme(self.theme)
+        ctk.set_appearance_mode(self.appearance)
+        ctk.set_default_color_theme(self.theme)
 
         self.title(self.w_title)
         self.geometry(f"{self.w_size[0]}x{self.w_size[1]}+{self.offset_x}+{self.offset_y}")
 
         # ============ MAIN FRAME ============
-        main_frame = cti.CTkFrame(master=self, width=self.w_size[0] - 15,
+        main_frame = ctk.CTkFrame(master=self, width=self.w_size[0] - 15,
                                   height=self.w_size[1] - 20,
                                   corner_radius=0, fg_color="transparent")
         main_frame.pack(side="left", fill="both", expand=True, padx=10)
 
-        scroll_frame = cti.CTkScrollableFrame(master=main_frame, width=self.w_size[0] - 15,
-                                            height=self.w_size[1] - 20,
-                                            corner_radius=0, fg_color="transparent")
+        scroll_frame = ctk.CTkScrollableFrame(master=main_frame, width=self.w_size[0] - 15,
+                                              height=self.w_size[1] - 20,
+                                              corner_radius=0, fg_color="transparent")
         scroll_frame.grid(row=0, column=0, sticky="nsew")
         # Adjust the padding of the scrollbar by adding an empty column to the left of the scrollbar
         main_frame.grid_columnconfigure(0, weight=1)  # Allow the scrollbar column to expand
@@ -634,9 +605,9 @@ class CryptorSettingsUI(cti.CTkToplevel):
         scrollbar.grid(row=1, column=2, sticky="ns")  # Adjust the column index as needed
 
         # Radio Save On Hash
-        self.save_file_on_encrypt_var = cti.IntVar()
+        self.save_file_on_encrypt_var = ctk.IntVar()
         self.save_file_on_encrypt_var.set(int(self.settings.get_save_file_on_encrypt()))
-        switch_save_on_hash = cti.CTkSwitch(master=scroll_frame,
+        switch_save_on_hash = ctk.CTkSwitch(master=scroll_frame,
                                             text="Save File on Encrypt",
                                             variable=self.save_file_on_encrypt_var,
                                             command=None,
@@ -645,9 +616,9 @@ class CryptorSettingsUI(cti.CTkToplevel):
         switch_save_on_hash.pack(fill="both", expand=True, pady=20)
 
         # Radio Check Updates on Startup
-        self.check_for_updates_var = cti.IntVar()
+        self.check_for_updates_var = ctk.IntVar()
         self.check_for_updates_var.set(int(self.settings.get_check_for_updates()))
-        switch_check_for_updates = cti.CTkSwitch(master=scroll_frame,
+        switch_check_for_updates = ctk.CTkSwitch(master=scroll_frame,
                                                  text="Check for updates",
                                                  variable=self.check_for_updates_var,
                                                  command=None,
@@ -656,42 +627,18 @@ class CryptorSettingsUI(cti.CTkToplevel):
         switch_check_for_updates.pack(fill="both", expand=True)
 
         # Button Accept
-        button_accept = cti.CTkButton(master=scroll_frame,
+        button_accept = ctk.CTkButton(master=scroll_frame,
                                       text="Accept",
                                       command=self.accept_settings,
                                       font=self.main_font)
         button_accept.pack(pady=20)
 
-        self.__centre_window()
+        centre_window(self, self.w_size[0], self.w_size[1])
 
     def accept_settings(self) -> None:
         self.settings.set_save_file_on_encrypt(self.save_file_on_encrypt_var.get())
         self.settings.set_check_for_updates(self.check_for_updates_var.get())
         self.destroy()
-
-    def __centre_window(self) -> None:
-        # Credit https://stackoverflow.com/a/14912644
-
-        # Get X, Y using TKinters methods
-        screen_width: int = self.winfo_screenwidth()  # width of the screen
-        screen_height: int = self.winfo_screenheight()  # height of the screen
-
-        cuislog.debug(f"Screen width: {screen_width}")
-        cuislog.debug(f"Screen height: {screen_height}")
-
-        root_width: int = self.w_size[0]
-        root_height: int = self.w_size[1]
-
-        x: int = int((screen_width / 2) - (root_width / 2)) + self.offset_x
-        y: int = int((screen_height / 2) - (root_height / 2)) + self.offset_y
-
-        # Set the dimensions of the screen and where it is placed
-        self.geometry(f"{root_width}x{root_height}+{x}+{y}")
-
-        if cuislog.level == 10:
-            cuislog.info(f"Centering screen {root_width}x{root_height}+{x}+{y}")
-        else:
-            cuislog.info(f"Centering screen")
 
 
 if __name__ == "__main__":
