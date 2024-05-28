@@ -10,7 +10,7 @@ import tkinter as tk
 
 from conf_globals.globals import G_LOG_LEVEL
 from src.utils import utils
-from src.ui.gui_utils import AppearanceMode, Theme, version_from_tuple, centre_window
+from src.ui.gui_utils import AppearanceMode, Theme, version_from_tuple, centre_window, get_custom_theme
 from src.utils.threaded_task import ThreadedQueue
 from src.cryptor.cryptor import Cryptor
 from src.settings.settings import Settings
@@ -23,7 +23,9 @@ cuislog = create_logger("CryptorSettingsUI", G_LOG_LEVEL)
 Path = pathlib.Path
 
 class CryptorUI:
-    FONT_ROBOTO = {"family": "Roboto", "size": 14}
+    FONT_SIZE = 14
+    FONT_ROBOTO = {"family": "Roboto", "size": FONT_SIZE}
+    FONT_ROBOTO_BOLD = {"family": "Roboto", "size": FONT_SIZE, "weight": "bold"}
     # If this value is anything but empty, it will ignore settings and use this predefined token
     SALT_FIXED: bytes = ''
 
@@ -40,21 +42,12 @@ class CryptorUI:
         self.task_queue = ThreadedQueue()
         self.task_queue.start_workers()
 
-        # Updater
-        self.check_update_cooldown = 60 * 30 # seconds
-        self.has_update: bool = False
-        self.updater: Union[Updater, None] = None
-        if self.settings.get_check_for_updates():
-            self.updater = Updater()
-            self.updater.set_current_version('.'.join([str(n) for n in Cryptor.VERSION]))
-            self.task_queue.add_task(self.check_for_update)
-
-        # General
-        self.root = None
-        self.main_font = None
+        # General - Tkinter
+        self.root: Union[None, ctk.CTk] = None
+        self.font_roboto: Union[None, ctk.CTkFont] = None
+        self.font_roboto_bold: Union[None, ctk.CTkFont] = None
         self.screen_x: int = 0
         self.screen_y: int = 0
-
         # SALT should control the fixed salt token
         # If it is set to empty, then it will be user defined (file -> set salt token)
         # If it is filled, then it will disregard whatever the settings use and use the fixed token
@@ -66,9 +59,26 @@ class CryptorUI:
             cuilog.debug(f"Salt token is not predefined. Will use from settings {self.salt.decode()}")
 
         self.title = "Cryptor %VERSION%".replace("%VERSION%", version_from_tuple(Cryptor.VERSION))
+        self.theme_selections = {
+            "Dark Blue": [AppearanceMode.DARK.value, Theme.BLUE_DARK.value],
+            "Light Blue": [AppearanceMode.LIGHT.value, Theme.BLUE.value],
+            "Dark Green": [AppearanceMode.DARK.value, Theme.GREEN.value],
+            "Light Green": [AppearanceMode.LIGHT.value, Theme.GREEN.value],
+        }
+        self.user_theme = self.settings.get_theme()
+        self.col_light_green: str = "#2CC985"
+        self.col_dark_green: str = "#2FA572"
+        self.col_light_blue: str = "#3B8ED0"
+        self.col_dark_blue: str = "#1F538D"
 
-        self.appearance = AppearanceMode.DARK.value
-        self.theme = Theme.BLUE_DARK.value
+        # Updater
+        self.check_update_cooldown = 60 * 30  # seconds
+        self.has_update: bool = False
+        self.updater: Union[Updater, None] = None
+        if self.settings.get_check_for_updates():
+            self.updater = Updater()
+            self.updater.set_current_version('.'.join([str(n) for n in Cryptor.VERSION]))
+            self.task_queue.add_task(self.check_for_update)
 
         self.window_size = (500, 400)
 
@@ -78,17 +88,24 @@ class CryptorUI:
 
         # Widgets of importance values
         self.label_credits = None
+        self.tabview = None
         # Tab Encrypt
+        self.button_encrypt = None
+        self.button_copy_token = None
+        self.button_copy_encrypted_password = None
         self.password_input_field = None
         self.generated_token_field = None
         self.generated_encrypted_pass_field = None
+        self.button_show_encrypted_password = None
         # Tab Decrypt
+        self.button_decrypt = None
+        self.button_copy_decrypted_password = None
         self.token_input_field = None
         self.encrypted_pass_field = None
         self.decrypted_pass_field = None
         self.button_show_token = None
-        self.button_show_encrypted_password = None
         self.button_show_decrypted_password = None
+        self.combobox_theme = None
 
         # Vars that hold display info
         self.token_var: Union[ctk.StringVar, str] = ''  # These need to be defined later becase there is not root Tkinter window
@@ -105,8 +122,7 @@ class CryptorUI:
     def show(self):
         cuilog.info(f"Initialising UI elements")
 
-        ctk.set_appearance_mode(self.appearance)
-        ctk.set_default_color_theme(self.theme)
+        self.set_theme(self.settings.get_theme())
 
         self.root = ctk.CTk()
         self.root.geometry(f"{self.window_size[0]}x{self.window_size[1]}")
@@ -127,163 +143,178 @@ class CryptorUI:
         menu_file.add_command(label="Exit", command=self.root.quit)
         menu_bar.add_cascade(label="File", menu=menu_file)
 
-        self.main_font = ctk.CTkFont(**self.FONT_ROBOTO)
+        self.font_roboto = ctk.CTkFont(**self.FONT_ROBOTO)
 
         frame = ctk.CTkFrame(master=self.root, fg_color="transparent")
         frame.pack(fill="both", expand=True)
 
-        tabview = ctk.CTkTabview(master=frame, width=500, fg_color="transparent")
-        tabview.grid(row=0, column=2, padx=(20, 0), pady=(20, 0), sticky="nsew")
+        self.tabview = ctk.CTkTabview(master=frame, width=500, fg_color="transparent")
+        self.tabview.grid(row=0, column=2, padx=(20, 0), pady=(20, 0), sticky="nsew")
 
-        # ============= CREATE TAB ENCRYPT ===================
-        tabview.add(self.tab_encrypt)
-        tabview.tab(self.tab_encrypt)
+        # ============================================= TAB ENCRYPT ===================================================
+        self.tabview.add(self.tab_encrypt)
+        self.tabview.tab(self.tab_encrypt)
 
         # Password Input Field
-        self.password_input_field = ctk.CTkEntry(master=tabview.tab(self.tab_encrypt),
+        self.password_input_field = ctk.CTkEntry(master=self.tabview.tab(self.tab_encrypt),
                                                  placeholder_text="Password",
                                                  width=500,
-                                                 font=self.main_font)
+                                                 font=self.font_roboto)
         self.password_input_field.pack(padx=10, pady=0)
 
         self.encrypted_run_feedback_var = ctk.StringVar()
         # Button Begin Encrypt
-        button_encrypt = ctk.CTkButton(master=tabview.tab(self.tab_encrypt),
+        self.button_encrypt = ctk.CTkButton(master=self.tabview.tab(self.tab_encrypt),
                                        text="Encrypt",
                                        command=self.do_encrypt,
-                                       font=self.main_font)
-        button_encrypt.pack(padx=(6, 3), pady=12, side=ctk.TOP, expand=False, fill=ctk.X)
+                                       font=self.font_roboto)
+        self.button_encrypt.pack(padx=(6, 3), pady=12, side=ctk.TOP, expand=False, fill=ctk.X)
 
         # Token Field
         self.token_var = ctk.StringVar()
-        self.generated_token_field = ctk.CTkEntry(master=tabview.tab(self.tab_encrypt),
+        self.generated_token_field = ctk.CTkEntry(master=self.tabview.tab(self.tab_encrypt),
                                                   textvariable=self.token_var,
                                                   show='*',
                                                   width=500,
-                                                  font=self.main_font)
+                                                  font=self.font_roboto)
         self.generated_token_field.configure(state="disabled")
         self.generated_token_field.pack(padx=10, pady=12)
 
         # Copy/Show Token Buttons Frame
-        frame_btns_copy_show_encrypted_token = ctk.CTkFrame(master=tabview.tab(self.tab_encrypt), fg_color="transparent")
+        frame_btns_copy_show_encrypted_token = ctk.CTkFrame(master=self.tabview.tab(self.tab_encrypt), fg_color="transparent")
         frame_btns_copy_show_encrypted_token.pack(fill="x", padx=50, pady=0)
 
         # Copy Token Button
-        copy_token_button = ctk.CTkButton(master=frame_btns_copy_show_encrypted_token,
-                                          text="Copy Token",
-                                          command=self.copy_token,
-                                          font=self.main_font)
+        self.button_copy_token = ctk.CTkButton(master=frame_btns_copy_show_encrypted_token,
+                                               text="Copy Token",
+                                               command=self.copy_token,
+                                               font=self.font_roboto)
 
         # Show Token Button
         self.button_show_token = ctk.CTkButton(master=frame_btns_copy_show_encrypted_token,
                                                text="Show Token",
                                                command=self.show_token,
-                                               font=self.main_font)
-        copy_token_button.pack(padx=(0, 6), side=ctk.LEFT, expand=True, fill=ctk.X)
+                                               font=self.font_roboto)
+        self.button_copy_token.pack(padx=(0, 6), side=ctk.LEFT, expand=True, fill=ctk.X)
         self.button_show_token.pack(padx=(6, 0), side=ctk.LEFT, expand=True, fill=ctk.X)
 
         # Encrypted Password Field
         self.encrypted_password_var = ctk.StringVar()
-        self.generated_encrypted_pass_field = ctk.CTkEntry(master=tabview.tab(self.tab_encrypt),
+        self.generated_encrypted_pass_field = ctk.CTkEntry(master=self.tabview.tab(self.tab_encrypt),
                                                            textvariable=self.encrypted_password_var,
                                                            show='*',
                                                            width=500,
-                                                           font=self.main_font)
+                                                           font=self.font_roboto)
         self.generated_encrypted_pass_field.configure(state="disabled")
         self.generated_encrypted_pass_field.pack(padx=10, pady=12)
 
         # Copy/Show Token Buttons Frame
-        frame_btns_copy_show_encrypted_pw = ctk.CTkFrame(master=tabview.tab(self.tab_encrypt), fg_color="transparent")
+        frame_btns_copy_show_encrypted_pw = ctk.CTkFrame(master=self.tabview.tab(self.tab_encrypt), fg_color="transparent")
         frame_btns_copy_show_encrypted_pw.pack(fill="x", padx=50, pady=0)
 
         # Copy Encrypted Password Button
-        copy_encrypted_password_button = ctk.CTkButton(master=frame_btns_copy_show_encrypted_pw,
-                                                       text="Copy Password",
-                                                       command=self.copy_encrypted_password,
-                                                       font=self.main_font)
+        self.button_copy_encrypted_password = ctk.CTkButton(master=frame_btns_copy_show_encrypted_pw,
+                                                            text="Copy Password",
+                                                            command=self.copy_encrypted_password,
+                                                            font=self.font_roboto)
 
         # Show Encrypted Password Button
         self.button_show_encrypted_password = ctk.CTkButton(master=frame_btns_copy_show_encrypted_pw,
                                                             text="Show Password",
                                                             command=self.show_encrypted_password,
-                                                            font=self.main_font)
+                                                            font=self.font_roboto)
 
-        copy_encrypted_password_button.pack(padx=(0, 6), side=ctk.LEFT, expand=True, fill=ctk.X)
+        self.button_copy_encrypted_password.pack(padx=(0, 6), side=ctk.LEFT, expand=True, fill=ctk.X)
         self.button_show_encrypted_password.pack(padx=(6, 0), side=ctk.LEFT, expand=True, fill=ctk.X)
 
         # Set and Pack info label for run status
-        encrypt_run_status = ctk.CTkLabel(master=tabview.tab(self.tab_encrypt),
+        encrypt_run_status = ctk.CTkLabel(master=self.tabview.tab(self.tab_encrypt),
                                           textvariable=self.encrypted_run_feedback_var,
-                                          font=self.main_font)
+                                          font=self.font_roboto)
         encrypt_run_status.pack(side=ctk.BOTTOM, expand=True, fill=ctk.X)
 
-        # ============= CREATE TAB DECRYPT ===================
-        tabview.add(self.tab_decrypt)
-        tabview.tab(self.tab_decrypt)
+        # ============================================= TAB DECRYPT ===================================================
+        self.tabview.add(self.tab_decrypt)
+        self.tabview.tab(self.tab_decrypt)
 
         # Token Input Field
-        self.token_input_field = ctk.CTkEntry(master=tabview.tab(self.tab_decrypt),
+        self.token_input_field = ctk.CTkEntry(master=self.tabview.tab(self.tab_decrypt),
                                               placeholder_text="Please supply a Token",
                                               width=500,
-                                              font=self.main_font)
+                                              font=self.font_roboto)
         self.token_input_field.pack(padx=10, pady=6)
 
         # Password Input Field
-        self.encrypted_pass_field = ctk.CTkEntry(master=tabview.tab(self.tab_decrypt),
+        self.encrypted_pass_field = ctk.CTkEntry(master=self.tabview.tab(self.tab_decrypt),
                                                  placeholder_text="Please supply an Encrypted Password",
                                                  width=500,
-                                                 font=self.main_font)
+                                                 font=self.font_roboto)
         self.encrypted_pass_field.pack(padx=10, pady=0)
 
         # Button Begin Decrypt
-        button_decrypt = ctk.CTkButton(master=tabview.tab(self.tab_decrypt),
+        self.button_decrypt = ctk.CTkButton(master=self.tabview.tab(self.tab_decrypt),
                                        text="Decrypt",
                                        command=self.do_decrypt,
-                                       font=self.main_font)
-        button_decrypt.pack(padx=0, pady=12)
+                                       font=self.font_roboto)
+        self.button_decrypt.pack(padx=0, pady=12)
 
         # Decrypted Password Field
         self.decrypted_password_var = ctk.StringVar()
-        self.decrypted_pass_field = ctk.CTkEntry(master=tabview.tab(self.tab_decrypt),
+        self.decrypted_pass_field = ctk.CTkEntry(master=self.tabview.tab(self.tab_decrypt),
                                                  textvariable=self.decrypted_password_var,
                                                  width=500,
-                                                 font=self.main_font,
+                                                 font=self.font_roboto,
                                                  show="*")
         self.decrypted_pass_field.pack(padx=10, pady=0)
 
-        frame_btns_copy_show_decrypted_pw = ctk.CTkFrame(master=tabview.tab(self.tab_decrypt), fg_color="transparent")
+        frame_btns_copy_show_decrypted_pw = ctk.CTkFrame(master=self.tabview.tab(self.tab_decrypt), fg_color="transparent")
         frame_btns_copy_show_decrypted_pw.pack(fill="x", padx=50, pady=10)
 
         # Button Copy Decrypted Password
-        button_copy_decrypted_password = ctk.CTkButton(master=frame_btns_copy_show_decrypted_pw,
+        self.button_copy_decrypted_password = ctk.CTkButton(master=frame_btns_copy_show_decrypted_pw,
                                                        text="Copy Password",
                                                        command=self.copy_decrypted_password,
-                                                       font=self.main_font)
+                                                       font=self.font_roboto)
 
         # Button Show Decrypted Password
         self.button_show_decrypted_password = ctk.CTkButton(master=frame_btns_copy_show_decrypted_pw,
                                                             text="Show Password",
                                                             command=self.show_decrypted_password,
-                                                            font=self.main_font)
+                                                            font=self.font_roboto)
 
-        button_copy_decrypted_password.pack(padx=(0, 6), side=ctk.LEFT, expand=True, fill=ctk.X)
+        self.button_copy_decrypted_password.pack(padx=(0, 6), side=ctk.LEFT, expand=True, fill=ctk.X)
         self.button_show_decrypted_password.pack(padx=(6, 0), side=ctk.LEFT, expand=True, fill=ctk.X)
 
-        # ============= CREATE TAB FROM FILES ===================
-        tabview.add(self.tab_from_file)
-        tabview.pack(padx=10, pady=12)
+        # ============================================ TAB FROM FILES ==================================================
+        self.tabview.add(self.tab_from_file)
+        self.tabview.pack(padx=10, pady=12)
 
-        label_wip = ctk.CTkLabel(master=tabview.tab(self.tab_from_file),
+        label_wip = ctk.CTkLabel(master=self.tabview.tab(self.tab_from_file),
                                  text="Under construction",
                                  text_color="Yellow",
-                                 font=self.main_font)
+                                 font=self.font_roboto)
         label_wip.pack(padx=0, pady=12)
 
-        # Label Credits
+        # ============================================== COMBOBOX THEME ==============================================
+        label_theme_combobox = ctk.CTkLabel(master=frame, font=self.font_roboto, text="Theme")
+        self.combobox_theme = ctk.CTkComboBox(master=frame,
+                                              font=self.font_roboto,
+                                              dropdown_font=self.font_roboto,
+                                              values=list(self.theme_selections.keys()),
+                                              command=self._theme_apply_callback)
+
+        label_theme_combobox.pack(padx=(10, 10), pady=(0, 10), side=ctk.LEFT, expand=False, fill=ctk.X)
+        self.combobox_theme.pack(padx=(10, 10), pady=(0, 10), side=ctk.LEFT, expand=False, fill=ctk.X)
+        self.combobox_theme.set(self.user_theme)
+        # =============================================================================================================
+
+        # ================================================== CREDITS ==================================================
         self.label_credits = ctk.CTkLabel(master=frame,
                                           text="© r0fld4nc3",
-                                          font=self.main_font)
+                                          font=self.font_roboto)
         self.label_credits.pack()
+
+        self._set_themed_elements()
 
         centre_window(self.root, self.window_size[0], self.window_size[1])
 
@@ -538,6 +569,71 @@ class CryptorUI:
 
         return self.has_update
 
+    def set_theme(self, theme_name: str):
+        theme_name = get_custom_theme(theme_name)
+
+        if not theme_name:
+            theme_name = list(self.theme_selections.keys())[0]
+
+        cuilog.info(f"Set theme {theme_name}")
+
+        appearance, theme = self.theme_selections.get(theme_name)
+        ctk.set_appearance_mode(appearance)
+        ctk.set_default_color_theme(theme)
+
+        self.settings.set_theme(theme_name)
+
+    def _theme_apply_callback(self, choice):
+        cuislog.debug(f"Theme combobox selected: {choice} {self.theme_selections[choice][1]}")
+        self.set_theme(choice)
+        self.user_theme = choice
+
+        self._set_themed_elements()
+
+    def _set_themed_elements(self):
+        theme = self.user_theme.lower()
+
+        if "blue" in theme:
+            if "dark" in theme:
+                text_col = "White"
+                fg_col = self.col_dark_blue
+                dropdown_hover_col = self.col_dark_blue
+                dropdown_text_col = "White"
+            else:
+                text_col = "White"
+                fg_col = self.col_light_blue
+                dropdown_hover_col = self.col_light_blue
+                dropdown_text_col = "Black"
+        elif "green" in theme:
+            if "dark" in theme:
+                text_col = "White"
+                fg_col = self.col_dark_green
+                dropdown_hover_col = self.col_dark_green
+                dropdown_text_col = "White"
+            else:
+                text_col = "Black"
+                fg_col = self.col_light_green
+                dropdown_hover_col = self.col_light_green
+                dropdown_text_col = "Black"
+        else:
+            text_col = "White"
+            fg_col = "Light Pink"
+            dropdown_hover_col = "Light Pink"
+            dropdown_text_col = "Pink"
+
+        self.tabview.configure(text_color=text_col, segmented_button_selected_color=fg_col)
+        self.button_encrypt.configure(text_color=text_col, fg_color=fg_col)
+        self.button_copy_token.configure(text_color=text_col, fg_color=fg_col)
+        self.button_show_token.configure(text_color=text_col, fg_color=fg_col)
+        self.button_copy_encrypted_password.configure(text_color=text_col, fg_color=fg_col)
+        self.button_show_encrypted_password.configure(text_color=text_col, fg_color=fg_col)
+        self.button_decrypt.configure(text_color=text_col, fg_color=fg_col)
+        self.button_copy_decrypted_password.configure(text_color=text_col, fg_color=fg_col)
+        self.button_show_decrypted_password.configure(text_color=text_col, fg_color=fg_col)
+
+        self.combobox_theme.configure(border_color=fg_col, button_color=fg_col,
+                                      dropdown_hover_color=dropdown_hover_col, dropdown_text_color=dropdown_text_col)
+
     def __label_update_available(self) -> None:
         cuilog.info("Binding Hyperlink Label")
         self.label_credits.configure(text="© r0fld4nc3 (Update available)", text_color="#769dff", cursor="hand2")
@@ -627,11 +723,11 @@ class CryptorSettingsUI(ctk.CTkToplevel):
         switch_check_for_updates.pack(fill="both", expand=True)
 
         # Button Accept
-        button_accept = ctk.CTkButton(master=scroll_frame,
+        self.button_accept = ctk.CTkButton(master=scroll_frame,
                                       text="Accept",
                                       command=self.accept_settings,
                                       font=self.main_font)
-        button_accept.pack(pady=20)
+        self.button_accept.pack(pady=20)
 
         centre_window(self, self.w_size[0], self.w_size[1])
 

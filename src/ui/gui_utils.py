@@ -1,13 +1,17 @@
 import pathlib
 from enum import Enum
+from typing import Union
 
 import customtkinter as ctk
+
 from conf_globals.globals import G_LOG_LEVEL
 from logs.cryptor_logger import create_logger
 
-ulog = create_logger("ui Utils", G_LOG_LEVEL)
+ulog = create_logger("UI Utils", G_LOG_LEVEL)
 
 Path = pathlib.Path
+
+THEMES_FOLDER = Path.cwd() / "src" / "ui" / "themes"
 
 class AppearanceMode(Enum):
     SYS = "dark"
@@ -58,3 +62,33 @@ def centre_window(root_geometry: ctk.CTk, size_x: int, size_y: int) -> None:
         ulog.info(f"Centering screen {root_width}x{root_height}+{x}+{y}")
     else:
         ulog.info(f"Centering screen")
+
+def theme_name_from_theme_file(theme_file: Union[str, Path]):
+    if isinstance(theme_file, str):
+        # Wowweee...
+        theme_name = ' '.join(str(w).capitalize() for w in theme_file.replace('\\', '/').replace('-', ' ').split('/')[-1].split('.json')[0].split(' '))
+    elif isinstance(theme_file, Path):
+        theme_name = ' '.join([str(w).capitalize() for w in theme_file.name.split('.')[0].split('-')])
+    else:
+        return False
+
+    ulog.debug(f"Theme Name: {theme_name}")
+
+    return theme_name
+
+def get_custom_theme(theme_name: str):
+    ulog.info(f"Getting custom theme {theme_name}")
+    theme_file_name = '-'.join(theme_name.lower().split(' ')) + ".json"
+
+    theme_file = THEMES_FOLDER / theme_file_name
+
+    if not theme_file.exists():
+        ulog.info(f"Theme doesn't appear to exist in custom themes folder. Attempting built-in customtkinter")
+        # If the theme file doesn't exist, try to get from the built-in customtkinter themes
+        # Simply return the theme name like so: Dark Blue
+        theme_file = ' '.join([str(w).capitalize() for w in theme_name.split(' ')])
+        ulog.info(f"Theme file: {theme_file}")
+    else:
+        ulog.info(f"Theme file: {theme_file}")
+
+    return theme_name_from_theme_file(theme_file)

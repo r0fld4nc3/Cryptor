@@ -22,6 +22,7 @@ class Settings(metaclass=Singleton):
             "check-updates": False,
             "save-on-encrypt": False,
             "last-checked-update": 0, # int timestamp
+            "theme": ""
         }
         self._config_file_name = "cryptor-settings.json"
         self.config_dir = Path(config_folder)
@@ -84,6 +85,16 @@ class Settings(metaclass=Singleton):
         if not isinstance(v, int):
             v = 0
         return v
+
+    def set_theme(self, theme: str):
+        self.settings["theme"] = theme
+        self.save_config()
+
+        return self
+
+    def get_theme(self) -> str:
+        self.load_config()
+        return self.settings.get("theme", "Dark Blue")
 
     def save_config(self) -> Path:
         if self.config_dir == '' or not Path(self.config_dir).exists():
