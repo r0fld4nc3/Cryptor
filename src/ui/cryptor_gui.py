@@ -46,7 +46,7 @@ class CryptorUI:
         self.updater: Union[Updater, None] = None
         if self.settings.get_check_for_updates():
             self.updater = Updater()
-            self.updater.set_current_version("0.0.0")
+            self.updater.set_current_version('.'.join([str(n) for n in Cryptor.VERSION]))
             self.task_queue.add_task(self.check_for_update)
 
         # General

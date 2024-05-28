@@ -93,6 +93,7 @@ class Updater:
 
     def set_current_version(self, version_str: str) -> None:
         self.local_version = version_str
+        updlog.info(f"Setting version to check to {self.local_version}")
 
     @staticmethod
     def _to_int(value):
