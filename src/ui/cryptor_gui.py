@@ -106,6 +106,8 @@ class CryptorUI:
         self.button_show_token = None
         self.button_show_decrypted_password = None
         self.combobox_theme = None
+        # Menubar
+        self.menu_file = None
 
         # Vars that hold display info
         self.token_var: Union[ctk.StringVar, str] = ''  # These need to be defined later becase there is not root Tkinter window
@@ -135,13 +137,13 @@ class CryptorUI:
 
         # File Menu
         # Only add if we need it. May change in the future, as things need to be added regardless of fixed salt
-        menu_file = tk.Menu(menu_bar, tearoff=False, background="#212121", foreground="white")
+        self.menu_file = tk.Menu(menu_bar, tearoff=False, background="#212121", foreground="white")
         if not self.__is_salt_fixed():
-            menu_file.add_command(label="Set Salt Token", command=self.set_salt_token)
-        menu_file.add_command(label="Settings", command=self.open_settings_gui)
-        menu_file.add_separator()
-        menu_file.add_command(label="Exit", command=self.root.quit)
-        menu_bar.add_cascade(label="File", menu=menu_file)
+            self.menu_file.add_command(label="Set Salt Token", command=self.set_salt_token)
+        self.menu_file.add_command(label="Settings", command=self.open_settings_gui)
+        self.menu_file.add_separator()
+        self.menu_file.add_command(label="Exit", command=self.root.quit)
+        menu_bar.add_cascade(label="File", menu=self.menu_file)
 
         self.font_roboto = ctk.CTkFont(**self.FONT_ROBOTO)
 
@@ -599,27 +601,37 @@ class CryptorUI:
                 fg_col = self.col_dark_blue
                 dropdown_hover_col = self.col_dark_blue
                 dropdown_text_col = "White"
+                menu_bar_text_col = "White"
+                menu_bar_bg_col = self.col_dark_blue
             else:
                 text_col = "White"
                 fg_col = self.col_light_blue
                 dropdown_hover_col = self.col_light_blue
                 dropdown_text_col = "Black"
+                menu_bar_text_col = "Black"
+                menu_bar_bg_col = "White"
         elif "green" in theme:
             if "dark" in theme:
                 text_col = "White"
                 fg_col = self.col_dark_green
                 dropdown_hover_col = self.col_dark_green
                 dropdown_text_col = "White"
+                menu_bar_text_col = "White"
+                menu_bar_bg_col = self.col_dark_green
             else:
                 text_col = "Black"
                 fg_col = self.col_light_green
                 dropdown_hover_col = self.col_light_green
                 dropdown_text_col = "Black"
+                menu_bar_text_col = "Black"
+                menu_bar_bg_col = self.col_light_green
         else:
             text_col = "White"
             fg_col = "Light Pink"
             dropdown_hover_col = "Light Pink"
             dropdown_text_col = "Pink"
+            menu_bar_text_col = "White"
+            menu_bar_bg_col = "Pink"
 
         self.tabview.configure(text_color=text_col, segmented_button_selected_color=fg_col)
         self.button_encrypt.configure(text_color=text_col, fg_color=fg_col)
@@ -634,6 +646,13 @@ class CryptorUI:
         self.combobox_theme.configure(border_color=fg_col, button_color=fg_col,
                                       dropdown_hover_color=dropdown_hover_col, dropdown_text_color=dropdown_text_col,
                                       state="readonly")
+
+        # Menu Bar
+        self.menu_file.configure(background=menu_bar_bg_col, foreground=menu_bar_text_col)
+
+        # Settings GUI
+        if self.settings_gui:
+            self.settings_gui.switch_check_for_updates.configure(text_color=text_col)
 
     def __label_update_available(self) -> None:
         cuilog.info("Binding Hyperlink Label")
@@ -661,9 +680,6 @@ class CryptorSettingsUI(ctk.CTkToplevel):
 
         self.w_title = "Cryptor Settings"
 
-        self.appearance = AppearanceMode.DARK.value
-        self.theme = Theme.BLUE_DARK.value
-
         # Widgets of importance values
         self.save_file_on_encrypt_var = None
         self.check_for_updates_var = None
@@ -678,9 +694,6 @@ class CryptorSettingsUI(ctk.CTkToplevel):
         # ============= ui =============
         # ==============================
         cuislog.info(f"Initialising UI elements")
-
-        ctk.set_appearance_mode(self.appearance)
-        ctk.set_default_color_theme(self.theme)
 
         self.title(self.w_title)
         self.geometry(f"{self.w_size[0]}x{self.w_size[1]}+{self.offset_x}+{self.offset_y}")
