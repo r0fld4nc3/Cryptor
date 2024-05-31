@@ -9,8 +9,10 @@ threadlogger = create_logger("ThreadLogger", G_LOG_LEVEL)
 class ThreadedQueue:
     def __init__(self, num_workers: int=G_THREAD_NUM_WORKERS):
         self.task_queue: queue = queue.Queue()
+        self.results_queue = queue.Queue()
         self.num_workers: int = num_workers
         self.workers: list = []
+        self.total_jobs = 0
 
         threadlogger.info(f"Init with {self.workers} workers")
 
@@ -34,11 +36,15 @@ class ThreadedQueue:
                 func, args, kwargs = task
                 try:
                     result = func(*args, **kwargs)
+                    if result is None:
+                        result = False
                     self.task_queue.task_done()
                 except Exception as e:
-                    threadlogger.error(f"{e}\n {' '*45}{'^'*len(str(e))} Could likely be ignored, normal shutown behaviour")
+                    if e is None:
+                        threadlogger.error(f"{e}\n {' '*45}{'^'*len(str(e))} Could likely be ignored, normal shutown behaviour")
                     result = e
                 self.task_queue.put(result)
+                self.results_queue.put(result)
             else:
                 # Exit gracefully
                 self.task_queue.put(None)
@@ -46,9 +52,22 @@ class ThreadedQueue:
     def add_task(self, func, *args, **kwargs):
         threadlogger.info(f"Adding task: {func}, {args}, {kwargs}")
         self.task_queue.put((func, args, kwargs))
+        self.total_jobs += 1
 
     def stop_workers(self):
         threadlogger.info(f"Stopping workers ({self.num_workers})")
         for _ in range(self.num_workers):
             threadlogger.info("Stopping")
             self.add_task(None)
+
+    def new_queue(self) -> queue.Queue:
+        return queue.Queue()
+
+    def empty(self) -> bool:
+        return self.task_queue.empty()
+
+    def results_queue_size(self) -> int:
+        return self.results_queue.qsize()
+
+    def jobs_finished(self) -> bool:
+        return self.empty() and self.results_queue_size() == self.total_jobs
