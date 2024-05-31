@@ -64,10 +64,16 @@ class ThreadedQueue:
         return queue.Queue()
 
     def empty(self) -> bool:
-        return self.task_queue.empty()
+        return self.task_queue.qsize() == 0
 
     def results_queue_size(self) -> int:
         return self.results_queue.qsize()
 
     def jobs_finished(self) -> bool:
         return self.empty() and self.results_queue_size() == self.total_jobs
+
+    def restart_counts(self):
+        self.task_queue: queue = queue.Queue()
+        self.results_queue = queue.Queue()
+        self.workers: list = []
+        self.total_jobs = 0
