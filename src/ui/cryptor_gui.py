@@ -632,7 +632,8 @@ class CryptorUI:
         self.button_show_decrypted_password.configure(text_color=text_col, fg_color=fg_col)
 
         self.combobox_theme.configure(border_color=fg_col, button_color=fg_col,
-                                      dropdown_hover_color=dropdown_hover_col, dropdown_text_color=dropdown_text_col)
+                                      dropdown_hover_color=dropdown_hover_col, dropdown_text_color=dropdown_text_col,
+                                      state="readonly")
 
     def __label_update_available(self) -> None:
         cuilog.info("Binding Hyperlink Label")
