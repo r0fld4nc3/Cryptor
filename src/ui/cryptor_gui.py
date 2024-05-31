@@ -70,6 +70,8 @@ class CryptorUI:
         self.col_dark_green: str = "#2FA572"
         self.col_light_blue: str = "#3B8ED0"
         self.col_dark_blue: str = "#1F538D"
+        self.col_btn_hover_blue: str = "#36719F"
+        self.col_btn_hover_green: str = "#0C955A"
 
         # Updater
         self.check_update_cooldown = 60 * 30  # seconds
@@ -599,6 +601,7 @@ class CryptorUI:
             if "dark" in theme:
                 text_col = "White"
                 fg_col = self.col_dark_blue
+                button_hover_col = self.col_btn_hover_blue
                 dropdown_hover_col = self.col_dark_blue
                 dropdown_text_col = "White"
                 menu_bar_text_col = "White"
@@ -606,6 +609,7 @@ class CryptorUI:
             else:
                 text_col = "White"
                 fg_col = self.col_light_blue
+                button_hover_col = self.col_btn_hover_blue
                 dropdown_hover_col = self.col_light_blue
                 dropdown_text_col = "Black"
                 menu_bar_text_col = "Black"
@@ -614,6 +618,7 @@ class CryptorUI:
             if "dark" in theme:
                 text_col = "White"
                 fg_col = self.col_dark_green
+                button_hover_col = self.col_btn_hover_green
                 dropdown_hover_col = self.col_dark_green
                 dropdown_text_col = "White"
                 menu_bar_text_col = "White"
@@ -621,6 +626,7 @@ class CryptorUI:
             else:
                 text_col = "Black"
                 fg_col = self.col_light_green
+                button_hover_col = self.col_btn_hover_green
                 dropdown_hover_col = self.col_light_green
                 dropdown_text_col = "Black"
                 menu_bar_text_col = "Black"
@@ -628,20 +634,21 @@ class CryptorUI:
         else:
             text_col = "White"
             fg_col = "Light Pink"
+            button_hover_col = "Pink"
             dropdown_hover_col = "Light Pink"
             dropdown_text_col = "Pink"
             menu_bar_text_col = "White"
             menu_bar_bg_col = "Pink"
 
         self.tabview.configure(text_color=text_col, segmented_button_selected_color=fg_col)
-        self.button_encrypt.configure(text_color=text_col, fg_color=fg_col)
-        self.button_copy_token.configure(text_color=text_col, fg_color=fg_col)
-        self.button_show_token.configure(text_color=text_col, fg_color=fg_col)
-        self.button_copy_encrypted_password.configure(text_color=text_col, fg_color=fg_col)
-        self.button_show_encrypted_password.configure(text_color=text_col, fg_color=fg_col)
-        self.button_decrypt.configure(text_color=text_col, fg_color=fg_col)
-        self.button_copy_decrypted_password.configure(text_color=text_col, fg_color=fg_col)
-        self.button_show_decrypted_password.configure(text_color=text_col, fg_color=fg_col)
+        self.button_encrypt.configure(text_color=text_col, fg_color=fg_col, hover_color=button_hover_col)
+        self.button_copy_token.configure(text_color=text_col, fg_color=fg_col, hover_color=button_hover_col)
+        self.button_show_token.configure(text_color=text_col, fg_color=fg_col, hover_color=button_hover_col)
+        self.button_copy_encrypted_password.configure(text_color=text_col, fg_color=fg_col, hover_color=button_hover_col)
+        self.button_show_encrypted_password.configure(text_color=text_col, fg_color=fg_col, hover_color=button_hover_col)
+        self.button_decrypt.configure(text_color=text_col, fg_color=fg_col, hover_color=button_hover_col)
+        self.button_copy_decrypted_password.configure(text_color=text_col, fg_color=fg_col, hover_color=button_hover_col)
+        self.button_show_decrypted_password.configure(text_color=text_col, fg_color=fg_col, hover_color=button_hover_col)
 
         self.combobox_theme.configure(border_color=fg_col, button_color=fg_col,
                                       dropdown_hover_color=dropdown_hover_col, dropdown_text_color=dropdown_text_col,
