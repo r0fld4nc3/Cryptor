@@ -23,6 +23,10 @@ cuislog = create_logger("CryptorSettingsUI", G_LOG_LEVEL)
 Path = pathlib.Path
 
 class CryptorUI:
+    _app_version = 'v' + ".".join([str(v) for v in Cryptor.VERSION[0:3]])
+    if len(Cryptor.VERSION) > 3:
+        _app_version += "-"
+        _app_version += "-".join(str(v) for v in Cryptor.VERSION[3:])
     FONT_SIZE = 14
     FONT_ROBOTO = {"family": "Roboto", "size": FONT_SIZE}
     FONT_ROBOTO_BOLD = {"family": "Roboto", "size": FONT_SIZE, "weight": "bold"}
@@ -78,8 +82,8 @@ class CryptorUI:
         self.has_update: bool = False
         self.updater: Union[Updater, None] = None
         if self.settings.get_check_for_updates():
-            self.updater = Updater()
-            self.updater.set_current_version('.'.join([str(n) for n in Cryptor.VERSION]))
+            self.updater = Updater("r0fld4nc3", "Cryptor")
+            self.updater.set_local_version(self._app_version)
             self.task_queue.add_task(self.check_for_update)
 
         self.window_size = (500, 400)
