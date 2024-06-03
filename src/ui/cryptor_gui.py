@@ -11,7 +11,7 @@ import tkinter as tk
 from conf_globals.globals import G_LOG_LEVEL
 from src.utils import utils
 from src.ui.gui_utils import AppearanceMode, Theme, version_from_tuple, centre_window, get_custom_theme
-from src.utils.threaded_task import ThreadedQueue
+from src.utils.threaded_queue import ThreadedQueue
 from src.cryptor.cryptor import Cryptor
 from src.settings.settings import Settings
 from src.logs.cryptor_logger import create_logger
