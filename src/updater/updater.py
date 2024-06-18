@@ -1,9 +1,9 @@
 import requests
 
-from src.logs.cryptor_logger import create_logger
+from src.logs import create_logger
 from conf_globals.globals import G_LOG_LEVEL
 
-updlog = create_logger("Updater", G_LOG_LEVEL)
+log = create_logger("Updater", G_LOG_LEVEL)
 
 class Updater:
     def __init__(self, user: str="github_username", repo_name:str = "you_repo_url"):
@@ -24,13 +24,13 @@ class Updater:
         self.local_version = "0.0.1"  # Default version, should be dynamically substituted.
 
     def check_for_update(self):
-        updlog.info(f"Checking for update...")
+        log.info(f"Checking for update...")
 
         self.pulled_releases = self.list_releases()
         if self.pulled_releases:
             has_new_version = self.has_new_release(self.local_version, self.pulled_releases[0])
         else:
-            updlog.info("No releases available")
+            log.info("No releases available")
             return False
 
         return has_new_version
@@ -42,12 +42,12 @@ class Updater:
             api_call = f"{self.api}{self._api_releases}"
             response = requests.get(api_call, timeout=60)
         except requests.ConnectionError as con_err:
-            updlog.error(f"Unable to establish connection to update repo.")
-            updlog.error(con_err)
+            log.error(f"Unable to establish connection to update repo.")
+            log.error(con_err)
             return False
 
         if not response.status_code == 200:
-            updlog.error("Not a valid repository.")
+            log.error("Not a valid repository.")
         else:
             releases = response.json()[:self._releases_max_fill]
 
@@ -55,10 +55,10 @@ class Updater:
 
     def has_new_release(self, current: str, remote: dict) -> bool:
         if current != remote.get(self._release_name) and current != remote.get(self._release_tag):
-            updlog.info(f"This release {current} is outdated with remote {remote.get(self._release_name)} ({remote.get(self._release_tag)})")
+            log.info(f"This release {current} is outdated with remote {remote.get(self._release_name)} ({remote.get(self._release_tag)})")
             return True
         else:
-            updlog.info(f"This release {current} is up to date with remote {remote.get(self._release_name)} ({remote.get(self._release_tag)})")
+            log.info(f"This release {current} is up to date with remote {remote.get(self._release_name)} ({remote.get(self._release_tag)})")
 
         return False
 
@@ -68,10 +68,10 @@ class Updater:
         _repo = f"{_user}/{repo}"
         _api = f"https://api.github.com/repos/{_repo}"
 
-        updlog.debug(f"User: {_user}\nRepository Name: {_repo}\nAPI: {_api}")
+        log.debug(f"User: {_user}\nRepository Name: {_repo}\nAPI: {_api}")
 
         return _user, _repo, _api
 
     def set_local_version(self, version: str):
         self.local_version = version
-        updlog.info(f"Set local version {version}")
+        log.info(f"Set local version {version}")

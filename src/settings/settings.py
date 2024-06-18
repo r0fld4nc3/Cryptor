@@ -5,13 +5,13 @@ import sys
 from typing import Union
 
 from conf_globals.globals import config_folder
-from src.utils.singleton import Singleton
-from src.logs.cryptor_logger import create_logger
+from src.utils import Singleton
+from src.logs import create_logger
 from conf_globals.globals import G_LOG_LEVEL
 
 Path = pathlib.Path
 
-clog = create_logger("CryptorSettings", G_LOG_LEVEL)
+log = create_logger("CryptorSettings", G_LOG_LEVEL)
 
 class Settings(metaclass=Singleton):
 
@@ -99,37 +99,37 @@ class Settings(metaclass=Singleton):
     def save_config(self) -> Path:
         if self.config_dir == '' or not Path(self.config_dir).exists():
             os.makedirs(self.config_dir)
-            clog.info(f"Generated config folder {self.config_dir}")
+            log.info(f"Generated config folder {self.config_dir}")
 
         with open(self.config_file, 'w', encoding="utf-8") as config_file:
             config_file.write(json.dumps(self.settings, indent=2))
-            clog.info(f"Saved config {self.config_file}")
+            log.info(f"Saved config {self.config_file}")
 
         return self.config_file
 
     def load_config(self) -> dict:
         if self.config_dir == '' or not Path(self.config_dir).exists()\
                 or not Path(self.config_file).exists():
-            clog.debug(f"Config does not exist.")
+            log.debug(f"Config does not exist.")
             return {}
 
         self.clean_save_file()
 
-        clog.debug(f"Loading config {self.config_file}")
+        log.debug(f"Loading config {self.config_file}")
         config_error = False
         with open(self.config_file, 'r', encoding="utf-8") as config_file:
             try:
                 self.settings = json.load(config_file)
             except Exception as e:
-                clog.error("An error occurred trying to read config file.")
-                clog.error(e)
+                log.error("An error occurred trying to read config file.")
+                log.error(e)
                 config_error = True
 
         if config_error:
-            clog.info("Generating new config file.")
+            log.info("Generating new config file.")
             with open(self.config_file, 'w', encoding="utf-8") as config_file:
                 config_file.write(json.dumps(self.settings, indent=2))
-        clog.debug(self.settings)
+        log.debug(self.settings)
 
         return self.settings
 
@@ -146,7 +146,7 @@ class Settings(metaclass=Singleton):
         """
 
         if not self.config_dir or not Path(self.config_dir).exists():
-            clog.info("No config folder found.")
+            log.info("No config folder found.")
             return False
 
         with open(self.config_file, 'r', encoding="utf-8") as config_file:
@@ -155,12 +155,12 @@ class Settings(metaclass=Singleton):
         for setting in reversed(list(settings.keys())):
             if setting not in self.settings.keys():
                 settings.pop(setting)
-                clog.debug(f"Cleared unused settings key: {setting}")
+                log.debug(f"Cleared unused settings key: {setting}")
 
         with open(self.config_file, 'w', encoding="utf-8") as config_file:
             config_file.write(json.dumps(settings, indent=2))
-            clog.debug(f"Saved cleaned config: {self.config_file}")
+            log.debug(f"Saved cleaned config: {self.config_file}")
 
-        clog.info("Cleaned-up saved file")
+        log.info("Cleaned-up saved file")
 
         return True

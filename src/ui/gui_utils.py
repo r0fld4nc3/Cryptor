@@ -5,9 +5,9 @@ from typing import Union
 import customtkinter as ctk
 
 from conf_globals.globals import G_LOG_LEVEL
-from logs.cryptor_logger import create_logger
+from src.logs import create_logger
 
-ulog = create_logger("UI Utils", G_LOG_LEVEL)
+log = create_logger("UI Utils", G_LOG_LEVEL)
 
 Path = pathlib.Path
 
@@ -40,14 +40,14 @@ def centre_window(root_geometry: ctk.CTk, size_x: int, size_y: int) -> None:
 
     # Requires a root to be present
     if not root_geometry:
-        ulog.error("No root specified")
+        log.error("No root specified")
 
     # Get X, Y using TKinters methods
     screen_width: int = root_geometry.winfo_screenwidth()  # width of the screen
     screen_height: int = root_geometry.winfo_screenheight()  # height of the screen
 
-    ulog.debug(f"Screen width: {screen_width}")
-    ulog.debug(f"Screen height: {screen_height}")
+    log.debug(f"Screen width: {screen_width}")
+    log.debug(f"Screen height: {screen_height}")
 
     root_width: int = size_x
     root_height: int = size_y
@@ -58,10 +58,10 @@ def centre_window(root_geometry: ctk.CTk, size_x: int, size_y: int) -> None:
     # Set the dimensions of the screen and where it is placed
     root_geometry.geometry(f"{root_width}x{root_height}+{x}+{y}")
 
-    if ulog.level == 10:
-        ulog.info(f"Centering screen {root_width}x{root_height}+{x}+{y}")
+    if log.level == 10:
+        log.info(f"Centering screen {root_width}x{root_height}+{x}+{y}")
     else:
-        ulog.info(f"Centering screen")
+        log.info(f"Centering screen")
 
 def theme_name_from_theme_file(theme_file: Union[str, Path]):
     if isinstance(theme_file, str):
@@ -72,23 +72,23 @@ def theme_name_from_theme_file(theme_file: Union[str, Path]):
     else:
         return False
 
-    ulog.debug(f"Theme Name: {theme_name}")
+    log.debug(f"Theme Name: {theme_name}")
 
     return theme_name
 
 def get_custom_theme(theme_name: str):
-    ulog.info(f"Getting custom theme {theme_name}")
+    log.info(f"Getting custom theme {theme_name}")
     theme_file_name = '-'.join(theme_name.lower().split(' ')) + ".json"
 
     theme_file = THEMES_FOLDER / theme_file_name
 
     if not theme_file.exists():
-        ulog.info(f"Theme doesn't appear to exist in custom themes folder. Attempting built-in customtkinter")
+        log.info(f"Theme doesn't appear to exist in custom themes folder. Attempting built-in customtkinter")
         # If the theme file doesn't exist, try to get from the built-in customtkinter themes
         # Simply return the theme name like so: Dark Blue
         theme_file = ' '.join([str(w).capitalize() for w in theme_name.split(' ')])
-        ulog.info(f"Theme file: {theme_file}")
+        log.info(f"Theme file: {theme_file}")
     else:
-        ulog.info(f"Theme file: {theme_file}")
+        log.info(f"Theme file: {theme_file}")
 
     return theme_name_from_theme_file(theme_file)

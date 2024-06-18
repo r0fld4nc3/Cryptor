@@ -7,7 +7,7 @@
   },
   {
    "optionDest": "filenames",
-   "value": "D:/GitHub/Python/Cryptor/Cryptor.py"
+   "value": "D:/GitHub/Python/Cryptor/src/Cryptor.py"
   },
   {
    "optionDest": "onefile",
@@ -24,6 +24,10 @@
   {
    "optionDest": "clean_build",
    "value": false
+  },
+  {
+   "optionDest": "optimize",
+   "value": "2"
   },
   {
    "optionDest": "strip",
@@ -52,10 +56,6 @@
   {
    "optionDest": "bootloader_ignore_signals",
    "value": false
-  },
-  {
-   "optionDest": "optimize",
-   "value": "2"
   },
   {
    "optionDest": "pathex",

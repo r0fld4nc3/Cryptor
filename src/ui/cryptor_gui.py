@@ -9,16 +9,15 @@ import customtkinter as ctk
 import tkinter as tk
 
 from conf_globals.globals import G_LOG_LEVEL
-from src.utils import utils
+from src import utils
 from src.ui.gui_utils import AppearanceMode, Theme, version_from_tuple, centre_window, get_custom_theme
-from src.utils.threaded_queue import ThreadedQueue
 from src.cryptor.cryptor import Cryptor
-from src.settings.settings import Settings
-from src.logs.cryptor_logger import create_logger
-from src.updater.updater import Updater
+from src.settings import Settings
+from src.logs import create_logger
+from src.updater import Updater
 
-cuilog = create_logger("CryptorUI", G_LOG_LEVEL)
-cuislog = create_logger("CryptorSettingsUI", G_LOG_LEVEL)
+log = create_logger("CryptorUI", G_LOG_LEVEL)
+settingslog = create_logger("CryptorSettingsUI", G_LOG_LEVEL)
 
 Path = pathlib.Path
 
@@ -43,7 +42,7 @@ class CryptorUI:
         self.toplevel_settings_class = CryptorSettingsUI
         self.settings_gui = None
 
-        self.task_queue = ThreadedQueue()
+        self.task_queue = utils.ThreadedQueue()
         self.task_queue.start_workers()
 
         # General - Tkinter
@@ -56,11 +55,11 @@ class CryptorUI:
         # If it is set to empty, then it will be user defined (file -> set salt token)
         # If it is filled, then it will disregard whatever the settings use and use the fixed token
         if self.__is_salt_fixed():
-            cuilog.debug("Salt token is predefined. Will ignore from settings")
+            log.debug("Salt token is predefined. Will ignore from settings")
             self.salt: bytes = self.SALT_FIXED
         else:
             self.salt: bytes = self.settings.get_salt_token()
-            cuilog.debug(f"Salt token is not predefined. Will use from settings {self.salt.decode()}")
+            log.debug(f"Salt token is not predefined. Will use from settings {self.salt.decode()}")
 
         self.title = "Cryptor %VERSION%".replace("%VERSION%", version_from_tuple(Cryptor.VERSION))
         self.theme_selections = {
@@ -125,10 +124,10 @@ class CryptorUI:
         self.is_encrypted_password_shown = False
         self.is_decrypted_password_shown = False
 
-        cuilog.info(f"{self.title}")
+        log.info(f"{self.title}")
 
     def show(self):
-        cuilog.info(f"Initialising UI elements")
+        log.info(f"Initialising UI elements")
 
         self.set_theme(self.settings.get_theme())
 
@@ -326,7 +325,7 @@ class CryptorUI:
 
         centre_window(self.root, self.window_size[0], self.window_size[1])
 
-        cuilog.info(f"Running mainloop")
+        log.info(f"Running mainloop")
 
         self.root.mainloop()
 
@@ -335,10 +334,10 @@ class CryptorUI:
 
         self.task_queue.stop_workers()
 
-        cuilog.info("Shutdown")
+        log.info("Shutdown")
 
     def do_encrypt(self) -> bool:
-        cuilog.info(f"Encrypting")
+        log.info(f"Encrypting")
         # Generate a key
         cryptor = Cryptor()
         cryptor.set_salt(self.salt)
@@ -356,7 +355,7 @@ class CryptorUI:
         self.token_var.set(utils.ensure_str(token))
         self.encrypted_password_var.set(utils.ensure_str(encrypted))
 
-        cuilog.info("Encryption finished")
+        log.info("Encryption finished")
 
         if self.settings.get_save_file_on_encrypt():
             saved_file = self.save_tokens_to_file()
@@ -373,37 +372,37 @@ class CryptorUI:
         if self.token_var.get():
             self.root.clipboard_clear()
             self.root.clipboard_append(utils.ensure_str(self.token_var.get()))
-            cuilog.info(f"Copied token to clipboard")
+            log.info(f"Copied token to clipboard")
         else:
-            cuilog.warning(f"No token to copy to clipboard")
+            log.warning(f"No token to copy to clipboard")
 
     def copy_encrypted_password(self) -> None:
         if self.encrypted_password_var.get():
             self.root.clipboard_clear()
             self.root.clipboard_append(utils.ensure_str(self.encrypted_password_var.get()))
-            cuilog.info(f"Copied encrypted password to clipboard")
+            log.info(f"Copied encrypted password to clipboard")
         else:
-            cuilog.warning(f"No encrypted password to copy to clipboard")
+            log.warning(f"No encrypted password to copy to clipboard")
 
     def copy_decrypted_password(self) -> None:
         if self.decrypted_password_var:
             self.root.clipboard_clear()
             self.root.clipboard_append(utils.ensure_str(self.decrypted_password_var.get()))
-            cuilog.info(f"Copied decrypted password to clipboard")
+            log.info(f"Copied decrypted password to clipboard")
         else:
-            cuilog.warning(f"No decrypted password to copy to clipboard")
+            log.warning(f"No decrypted password to copy to clipboard")
 
     def show_decrypted_password(self) -> None:
         if not self.decrypted_password_var.get():
             return
 
         if self.is_decrypted_password_shown:
-            cuilog.info("Hiding decrypted password")
+            log.info("Hiding decrypted password")
             self.decrypted_pass_field.configure(show='*')
             self.button_show_decrypted_password.configure(text="Show Password")
             self.is_decrypted_password_shown = False
         else:
-            cuilog.info("Showing decrypted password")
+            log.info("Showing decrypted password")
             self.decrypted_pass_field.configure(show='')
             self.button_show_decrypted_password.configure(text="Hide Password")
             self.is_decrypted_password_shown = True
@@ -413,12 +412,12 @@ class CryptorUI:
             return
 
         if self.is_encrypted_token_shown:
-            cuilog.info("Hiding token")
+            log.info("Hiding token")
             self.generated_token_field.configure(show='*')
             self.button_show_token.configure(text="Show Token")
             self.is_encrypted_token_shown = False
         else:
-            cuilog.info("Showing token")
+            log.info("Showing token")
             self.generated_token_field.configure(show='')
             self.button_show_token.configure(text="Hide Token")
             self.is_encrypted_token_shown = True
@@ -428,24 +427,24 @@ class CryptorUI:
             return
 
         if self.is_encrypted_password_shown:
-            cuilog.info("Hiding token")
+            log.info("Hiding token")
             self.generated_encrypted_pass_field.configure(show='*')
             self.button_show_encrypted_password.configure(text="Show Password")
             self.is_encrypted_password_shown = False
         else:
-            cuilog.info("Showing token")
+            log.info("Showing token")
             self.generated_encrypted_pass_field.configure(show='')
             self.button_show_encrypted_password.configure(text="Hide Password")
             self.is_encrypted_password_shown = True
 
     def do_decrypt(self) -> bool:
-        cuilog.info(f"Beginning decryption")
+        log.info(f"Beginning decryption")
 
         token = self.token_input_field.get()
         encrypted_password = self.encrypted_pass_field.get()
 
         if not token and not encrypted_password:
-            cuilog.warning(f"No token and encrypted password provided")
+            log.warning(f"No token and encrypted password provided")
             self.reset_decryption_fields()
             return False
 
@@ -457,12 +456,12 @@ class CryptorUI:
 
         self.decrypted_password_var.set(utils.ensure_str(decrypted))
 
-        cuilog.info(f"Decryption finished")
+        log.info(f"Decryption finished")
 
         return True
 
     def save_tokens_to_file(self) -> str:
-        cuilog.info(f"Save tokens to file")
+        log.info(f"Save tokens to file")
 
         file_suffix = "_tokens"
 
@@ -470,10 +469,10 @@ class CryptorUI:
         file_name = socket.gethostname() + "_tokens.txt"
 
         if "Windows" in platform.platform():
-            cuilog.info(f"Platform is Windows")
+            log.info(f"Platform is Windows")
             file_path = file_path / "Desktop"
 
-        cuilog.info(f"Suggested file: {file_path / file_name}")
+        log.info(f"Suggested file: {file_path / file_name}")
 
         tokens_file = ctk.filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text", ".txt")],
                                                        title="Save tokens file",
@@ -484,7 +483,7 @@ class CryptorUI:
         if file_suffix not in tokens_file:
             _path = Path(tokens_file).parent
             _name = Path(tokens_file).name
-            cuilog.debug(f"Re-adding suffix '{file_suffix}' to file name {_name}")
+            log.debug(f"Re-adding suffix '{file_suffix}' to file name {_name}")
             _suffix = Path(tokens_file).suffix
             _name = _name.replace(_suffix, "")
 
@@ -492,16 +491,16 @@ class CryptorUI:
             tokens_file = str(_path / _name)
 
         user_name = Path(tokens_file).name.replace("_tokens", '').replace(Path(tokens_file).suffix, "")
-        cuilog.info(f"Generated User Name {user_name}")
+        log.info(f"Generated User Name {user_name}")
 
         if tokens_file != file_suffix:
             with open(tokens_file, 'w') as f:
                 f.write(f"[HOST]\n{user_name}\n\n"
                         f"[TOKEN]\n{utils.ensure_str(self.token_var.get())}\n\n"
                         f"[PASSWORD]\n{utils.ensure_str(self.encrypted_password_var.get())}")
-            cuilog.info(f"Wrote {tokens_file}")
+            log.info(f"Wrote {tokens_file}")
         else:
-            cuilog.warning(f"Aborted. Returned tokens file: {tokens_file}")
+            log.warning(f"Aborted. Returned tokens file: {tokens_file}")
             tokens_file = ''
 
         return tokens_file
@@ -531,14 +530,14 @@ class CryptorUI:
     def open_settings_gui(self):
         # Check if instanstiated
         if self.settings_gui is None:
-            cuilog.info("Instantiating Settings Window")
+            log.info("Instantiating Settings Window")
             self.settings_gui = self.toplevel_settings_class(settings=self.settings)
         else:
             if not self.settings_gui.winfo_exists():
-                cuilog.info("Settings Window existed but is closed. Re-instantiating")
+                log.info("Settings Window existed but is closed. Re-instantiating")
                 self.settings_gui = self.toplevel_settings_class(settings=self.settings)
             else:
-                cuilog.info("Settings Window is visible")
+                log.info("Settings Window is visible")
 
         self.settings_gui.grab_set()
 
@@ -546,17 +545,17 @@ class CryptorUI:
         self.token_var.set('')
         self.encrypted_password_var.set('')
         self.encrypted_run_feedback_var.set(f"Ran on {utils.get_now()} - Reset fields")
-        cuilog.info("Reset encryption fields")
+        log.info("Reset encryption fields")
 
     def reset_decryption_fields(self) -> None:
         self.token_input_field.configure(textvariable='')
         self.encrypted_pass_field.configure(textvariable='')
         self.decrypted_password_var.set('')
-        cuilog.info("Reset decryption fields")
+        log.info("Reset decryption fields")
 
     def check_for_update(self) -> bool:
         sleep(2)
-        cuilog.info("Checking for Updates")
+        log.info("Checking for Updates")
 
         # Check today's date and last checked date
         do_check = False
@@ -566,7 +565,7 @@ class CryptorUI:
         if now >= last_checked + self.check_update_cooldown:
             do_check = True
 
-        cuilog.info(f"Today: {now} | Last:  {last_checked} | {do_check}")
+        log.info(f"Today: {now} | Last:  {last_checked} | {do_check}")
 
         if do_check:
             self.has_update = self.updater.check_for_update()
@@ -583,7 +582,7 @@ class CryptorUI:
         if not theme_name:
             theme_name = list(self.theme_selections.keys())[0]
 
-        cuilog.info(f"Set theme {theme_name}")
+        log.info(f"Set theme {theme_name}")
 
         appearance, theme = self.theme_selections.get(theme_name)
         ctk.set_appearance_mode(appearance)
@@ -592,7 +591,7 @@ class CryptorUI:
         self.settings.set_theme(theme_name)
 
     def _theme_apply_callback(self, choice):
-        cuislog.debug(f"Theme combobox selected: {choice} {self.theme_selections[choice][1]}")
+        settingslog.debug(f"Theme combobox selected: {choice} {self.theme_selections[choice][1]}")
         self.set_theme(choice)
         self.user_theme = choice
 
@@ -666,7 +665,7 @@ class CryptorUI:
             self.settings_gui.switch_check_for_updates.configure(text_color=text_col)
 
     def __label_update_available(self) -> None:
-        cuilog.info("Binding Hyperlink Label")
+        log.info("Binding Hyperlink Label")
         self.label_credits.configure(text="© r0fld4nc3 (Update available)", text_color="#769dff", cursor="hand2")
         self.label_credits.bind("<Button-1>", lambda e: webbrowser.open(f"http://www.github.com/{self.updater.repo}"))
 
@@ -704,7 +703,7 @@ class CryptorSettingsUI(ctk.CTkToplevel):
         # ==============================
         # ============= ui =============
         # ==============================
-        cuislog.info(f"Initialising UI elements")
+        settingslog.info(f"Initialising UI elements")
 
         self.title(self.w_title)
         self.geometry(f"{self.w_size[0]}x{self.w_size[1]}+{self.offset_x}+{self.offset_y}")
