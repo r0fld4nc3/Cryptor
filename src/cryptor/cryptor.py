@@ -8,9 +8,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import Fernet, InvalidToken
 
-from src.logs import create_logger
+from logs import create_logger
 from conf_globals.globals import G_LOG_LEVEL
-from src import utils
+import utils
 
 log = create_logger("Cryptor", G_LOG_LEVEL)
 

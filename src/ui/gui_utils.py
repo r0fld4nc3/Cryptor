@@ -5,7 +5,7 @@ from typing import Union
 import customtkinter as ctk
 
 from conf_globals.globals import G_LOG_LEVEL
-from src.logs import create_logger
+from logs import create_logger
 
 log = create_logger("UI Utils", G_LOG_LEVEL)
 

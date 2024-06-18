@@ -1,7 +1,7 @@
 import queue
 import threading
 
-from src.logs import create_logger
+from logs import create_logger
 from conf_globals.globals import G_LOG_LEVEL
 
 log = create_logger("Threaded Queue", G_LOG_LEVEL)

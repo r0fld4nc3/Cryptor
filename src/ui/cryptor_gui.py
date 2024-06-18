@@ -9,12 +9,12 @@ import customtkinter as ctk
 import tkinter as tk
 
 from conf_globals.globals import G_LOG_LEVEL
-from src import utils
-from src.ui.gui_utils import AppearanceMode, Theme, version_from_tuple, centre_window, get_custom_theme
-from src.cryptor.cryptor import Cryptor
-from src.settings import Settings
-from src.logs import create_logger
-from src.updater import Updater
+import utils
+from ui.gui_utils import AppearanceMode, Theme, version_from_tuple, centre_window, get_custom_theme
+from cryptor.cryptor import Cryptor
+from settings import Settings
+from logs import create_logger
+from updater import Updater
 
 log = create_logger("CryptorUI", G_LOG_LEVEL)
 settingslog = create_logger("CryptorSettingsUI", G_LOG_LEVEL)

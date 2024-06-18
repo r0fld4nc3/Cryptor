@@ -1,6 +1,6 @@
 import requests
 
-from src.logs import create_logger
+from logs import create_logger
 from conf_globals.globals import G_LOG_LEVEL
 
 log = create_logger("Updater", G_LOG_LEVEL)

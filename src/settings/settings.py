@@ -5,8 +5,8 @@ import sys
 from typing import Union
 
 from conf_globals.globals import config_folder
-from src.utils import Singleton
-from src.logs import create_logger
+from utils import Singleton
+from logs import create_logger
 from conf_globals.globals import G_LOG_LEVEL
 
 Path = pathlib.Path
