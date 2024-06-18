@@ -1,5 +1,6 @@
 import logging
 import pathlib
+from os import makedirs
 
 from conf_globals.globals import config_folder
 
@@ -15,6 +16,10 @@ LEVELS = {
 }
 
 def create_logger(logger_name: str, level: int) -> logging.Logger:
+    # Create needed folder if it doesn't exist
+    if not config_folder.exists():
+        makedirs(config_folder, exist_ok=True)
+
     logger = logging.getLogger(logger_name)
 
     logger.setLevel(LEVELS.get(level, 1))
