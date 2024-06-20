@@ -17,11 +17,11 @@ if "windows" in system:
     program_data_path = os.getenv("LOCALAPPDATA")
 elif "linux" in system or "unix" in system:
     print("Target System Linux/Unix")
-    program_data_path = Path(os.path.expanduser('~')) / "/.local/share/"
+    program_data_path = Path(os.path.expanduser('~')) / ".local/share/"
 elif "darwin" in system or "mac" in system:
     print("Target System MacOS")
     # Write to user-writable locations, like ~/.local/share/
-    program_data_path = Path(os.path.expanduser('~')) / "/.local/share/"
+    program_data_path = Path(os.path.expanduser('~')) / ".local/share/"
 else:
     print("Target System Other")
     print(system)
